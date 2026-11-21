@@ -475,6 +475,9 @@ legend{font-family:var(--head); font-weight:800; font-size:14px; padding:0; marg
 .spot-acts{display:flex; gap:8px; flex-wrap:wrap; align-items:center; width:100%}
 .spot-pin{width:34px; height:34px; border-radius:50%; background:var(--pink); border:3px solid var(--ink); box-shadow:0 0 0 3px var(--yellow), 2px 3px 0 var(--ink); display:grid; place-items:center; font-size:17px; font-weight:900; line-height:1; color:var(--ink)}
 
+/* tour bullets */
+.tour-list{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:5px; font-size:14.5px; line-height:1.35}
+
 </style>
 <div id="app" aria-live="polite"></div>
 <div id="modal-root"></div>
@@ -2103,6 +2106,7 @@ function modalView(){
       ${missing?`<p class="tiny muted">${missing} place${missing===1?' is':'s are'} still being located. They appear on the map as they’re found.</p>`:''}`; }
   else if(m.type==='editPlan'){ const pl=D.plans.find(p=>p.id===m.id);
     inner = `<h2>Change date</h2><form class="stack" data-form="editPlan"><label class="lbl" for="ep-date">Date</label><input id="ep-date" type="date" class="input" value="${esc(pl.date||'')}" min="${todayYmd()}" required><label class="lbl" for="ep-time">Time</label><input id="ep-time" class="input" value="${esc(pl.time||'')}" placeholder="8:00 pm"><button class="btn primary" type="submit">Save</button></form>`; }
+  else if(m.type==='planPlace') inner = planPlaceModal(m);
   else if(m.type==='onboard') inner = onboardModal(m);
   else if(m.type==='welcome') inner = `<div class="welcome"><div class="brand big">${LOGO}<span>yonder</span></div><h2>Hi ${esc(me().name)}! Save. Plan. Go.</h2>
       <ol class="steps3 compact"><li class="st st-pink"><b>1 · Save</b><span>Drop in reels. We find the places.</span></li><li class="st st-yellow"><b>2 · Plan</b><span>AI picks 3 that fit your group.</span></li><li class="st st-blue"><b>3 · Go</b><span>Vote, lock a date, rate it.</span></li></ol>
@@ -2110,6 +2114,19 @@ function modalView(){
       <div class="row gap wrap center"><button class="btn yellow xl" data-act="startTour">${ic('spark')} Quick tour (30 sec)</button><button class="btn xl" data-act="skipTour">I’ll explore myself</button></div></div>`;
   const enter = render.lastModal !== m.type + (m.step||'');
   return `<div class="modal-wrap ${enter?'enter':''}" data-act="closeModalBg"><div class="modal card ${m.type} ${enter?'enter':''}" role="dialog" aria-modal="true">${m.noClose?'':`<button class="mclose" data-act="closeModal" aria-label="Close">${ic('x')}</button>`}${inner}</div></div>`;
+}
+function planPlaceModal(m){
+  const p = placeById(m.id); if(!p) return '<p>Place not found.</p>'; const g = groupById(p.group_id);
+  const chip = (act, v, on, label, extra='') => `<button type="button" class="chip ${extra} ${on?'on':''}" aria-pressed="${on}" data-act="${act}" data-v="${esc(v)}">${on?ic('check'):''}${label}</button>`;
+  return `<h2>${ic('cal')} Plan ${esc(p.name)}</h2>
+    <p class="muted">${esc([p.area, p.price].filter(Boolean).join(' · '))}${p.area||p.price?'. ':''}Pick who’s coming and when. It goes straight onto the calendar.</p>
+    <form class="stack" data-form="planPlace">
+      ${g.is_personal ? '' : `<fieldset><legend>Who’s coming?</legend><div class="chips">${membersOf(g.id).map(id=>chip('ppWho', id, m.who.includes(id), `${av(id,'xs')}${esc(nm(id))}`, 'person')).join('')}</div></fieldset>`}
+      <fieldset><legend>When?</legend><div class="chips">${WHEN.map(([k,l])=>chip('ppWhen', k, m.when===k, l)).join('')}</div>
+        ${m.when==='date' ? `<input type="date" id="pp-date" class="input sm" value="${esc(m.date)}" min="${todayYmd()}" required>` : ''}</fieldset>
+      <label class="lbl" for="pp-time">Time</label><input id="pp-time" class="input" value="${esc(m.time)}" placeholder="8:00 pm" maxlength="20">
+      <button class="btn primary xl" type="submit">${ic('check')} Add to the calendar</button>
+    </form>`;
 }
 function onboardModal(m){
   return `<h2>One quick thing</h2><p class="muted">Where are you usually? Any area or city in the world. We use it for “Near you” and to suggest places that are easy for everyone.</p>
@@ -2395,11 +2412,27 @@ async function runExtract(m){
 }
 
 /* ================= actions ================= */
+const DEFAULT_TIME = {bars:'8:00 pm', cafe:'11:00 am', food:'8:30 pm', sunset:'5:30 pm', shows:'8:00 pm', workshop:'11:00 am', shop:'4:00 pm'};
+/* "Plan this" from the bucket list: the group already chose the place, so there are no new ideas and no vote: pick who and when, and it lands on the calendar. */
+async function lockPlace(m){
+  const p = placeById(m.id); if(!p) return; const gg = groupById(p.group_id);
+  if(!m.who.length){ toast('Pick at least one person who’s coming'); return; }
+  const date = ymd(whenToDate({when:m.when, date:m.date}));
+  const o = {place_id:p.id, name:p.name, area:p.area||'', category:p.category, price:p.price||'', why:p.note||'From your bucket list'};
+  const time = (m.time||'').trim() || DEFAULT_TIME[p.category] || '7:00 pm';
+  const pl = await api.createPlan(gg.id, {title:p.name, options:[o], prefs:{when:m.when, date}, who:m.who.slice(), date, time});
+  await api.sendMessage(gg.id, 'plan', 'Plan locked', {plan_id:pl.id});
+  S.modal = null;
+  await confirmPlan(D.plans.find(x=>x.id===pl.id) || pl);
+  S.gid = gg.id; S.view = 'groups'; S.panel = 'calendar'; S.mobilePane = 'panel'; store.set('view','groups');
+  const d = new Date(date+'T12:00'); S.calMonth = new Date(d.getFullYear(), d.getMonth(), 1); S.calDay = date;
+  toast(`${p.name} is on the calendar: ${fmtDate(date)} at ${time}`); render();
+}
 async function confirmPlan(pl){
   const t = tally(pl), o = pl.options[t.winner] || pl.options[0];
   let place_id = o.place_id && placeById(o.place_id) ? o.place_id : null;
   if(!place_id){ const [row] = await api.addPlaces(pl.group_id, [withCoords({name:o.name, area:o.area, category:o.category, price:o.price, note:o.why, source_kind:'ai'})]); place_id = row.id; }
-  const time = {bars:'8:00 pm', cafe:'11:00 am', food:'8:30 pm', sunset:'5:30 pm', shows:'8:00 pm', workshop:'11:00 am', shop:'4:00 pm'}[o.category] || '7:00 pm';
+  const time = DEFAULT_TIME[o.category] || '7:00 pm';
   await api.updatePlan(pl.id, {status:'confirmed', chosen:t.winner, place_id, title:o.name, time: pl.time || time});
   await api.sendMessage(pl.group_id, 'system', `Plan locked: ${o.name}, ${fmtDate(pl.date)} at ${pl.time||time}. Reminders set for the evening before and 2 hours before.`);
   const bots = (pl.who||[]).filter(id=>BOT_IDS.has(id));
@@ -2466,7 +2499,10 @@ document.addEventListener('click', async e=>{
     case 'cat': S.cat=v; render(); break;
     case 'interest': await api.toggleInterest(placeById(id)); break;
     case 'removePlace': { const p=placeById(id); if(p && confirmInline(el, 'Remove '+p.name+'?')){ await api.removePlace(id); S.sel=null; toast('Removed '+p.name); } break; }
-    case 'planThis': { const p=placeById(id); const pr=prefsFor(groupById(p.group_id)); pr.moods=[p.category]; pr.source='both'; pr.extra = `We’d love to do ${p.name}${p.area?' in '+p.area:''}.`; S.gid=p.group_id; S.panel='plan'; S.view='groups'; render(); toast('Filled in the planner with '+p.name); break; }
+    case 'planThis': { const p0=placeById(id); if(!p0) break; const g0=groupById(p0.group_id);
+      S.modal = {type:'planPlace', id, who: g0.is_personal ? [me().id] : membersOf(g0.id), when:'sat', date:'', time: DEFAULT_TIME[p0.category] || '7:00 pm'}; render(); break; }
+    case 'ppWho': { const m=S.modal, i=m.who.indexOf(v); if(i>=0) m.who.splice(i,1); else m.who.push(v); render(); break; }
+    case 'ppWhen': S.modal.when = v; render(); break;
     case 'calNav': S.calMonth = new Date(S.calMonth.getFullYear(), S.calMonth.getMonth()+(+v), 1); render(); break;
     case 'calDay': S.calDay = v||null; render(); break;
     case 'pref': { const p=prefsFor(g); const f=el.dataset.f; if(el.dataset.multi==='1'){ const arr=p[f]; const i=arr.indexOf(v); if(i>=0) arr.splice(i,1); else arr.push(v);
@@ -2536,6 +2572,7 @@ document.addEventListener('change', async e=>{
   if(el.dataset.actChange==='videoPick' && S.modal){ const f = el.files && el.files[0]; if(f){ try{ toast('Loading the video…'); S.modal.video = await readVideo(f); if(S.modal.step==='review') runExtract(S.modal); else render(); }catch(err){ toast(err.message); } } el.value=''; }
   if(el.dataset.actChange==='pick'){ S.modal.picks[+el.dataset.i] = el.checked; render(); }
   if(el.id==='pf-date'){ prefsFor(curGroup()).date = el.value; }
+  if(el.id==='pp-date' && S.modal) S.modal.date = el.value;
 });
 document.addEventListener('input', e=>{
   const el = e.target;
@@ -2544,6 +2581,8 @@ document.addEventListener('input', e=>{
   if(el.id==='sv-in' && S.modal) S.modal.raw = el.value;
   if(el.id==='jn-code' && S.modal) S.modal.code = el.value;
   if(el.id==='geo-q') S.geo.q = el.value;
+  if(el.id==='pp-date' && S.modal) S.modal.date = el.value;
+  if(el.id==='pp-time' && S.modal) S.modal.time = el.value;
   if(el.id==='gd-filter' && S.modal){ S.modal.filter = el.value; render(); }
 });
 document.addEventListener('scroll', e=>{ if(e.target && e.target.id==='msgs'){ const m=e.target; S.stick = m.scrollHeight - m.scrollTop - m.clientHeight < 40; } }, true);
@@ -2569,6 +2608,7 @@ document.addEventListener('submit', async e=>{
     else if(f==='plan'){ await runPlan(g); }
     else if(f==='ask'){ const q=(S.drafts['ask-'+g.id]||'').trim(); if(q) await runAsk(g,q); }
     else if(f==='profile'){ await api.saveProfile({name:$('#pf-name').value.trim()||me().name}); toast('Saved'); render(); }
+    else if(f==='planPlace'){ await lockPlace(S.modal); }
     else if(f==='geoSearch'){ await geoSearch(); }
     else if(f==='mapSearch'){ await mapSearch(); }
     else if(f==='newGroup'){ const name=$('#ng-name').value.trim(); if(!name) return; const ng = await api.createGroup(name, S.modal.color||COLORS[0]); S.modal={type:'invite'}; S.gid=ng.id; S.view='groups'; render(); }
@@ -2605,7 +2645,7 @@ async function afterLogin(){
 /* ================= WALKTHROUGH ================= */
 const TOUR = [
   {name:'Home', view:'home', sel:'[data-tour="home-plan"]', title:'Your starting point', text:'Start a plan or jump into a group. Below you’ll see what’s coming up and saved places near you.'},
-  {name:'Groups', view:'groups', panel:'plan', sel:'.ptabs, .mswitch .seg', title:'Where the planning happens', text:'Chat and drop reels to fill the bucket list. Then use these tabs: Plan with AI (ideas to vote on), Bucket list (places on a zoomable map) and Calendar (winning plans, rate them after).'},
+  {name:'Groups', view:'groups', panel:'plan', sel:'.ptabs, .mswitch .seg', title:'Where the planning happens', bullets:['Chat: talk and drop reels to fill the bucket list','Plan with AI: ideas for the group to vote on','Bucket list: saved places on a zoomable map','Calendar: plans that won, rate them after you go']},
   {name:'Taste swipe', view:'swipe', sel:'[data-tour="swipe"]', title:'Teach it your taste', text:'Swipe what you love and what you don’t. Plans and ideas get more “you”.'},
   {name:'Profile', view:'profile', sel:'[data-tour="profile"]', title:'You and your area', text:'Set your name, colour and where you usually are. See places you’ve rated and replay this tour.'},
 ];
@@ -2630,7 +2670,7 @@ const tour = {
     if(hole.h > innerHeight*0.55){ bx = Math.min(innerWidth-bw-12, Math.max(12, hole.x + hole.w/2 - bw/2)); by = Math.max(12, hole.y + 24); }
     ov.innerHTML = `<div class="tour-hole" style="left:${hole.x}px;top:${hole.y}px;width:${hole.w}px;height:${hole.h}px"></div>
       <div class="tour-bubble" style="left:${bx}px;top:${by}px;width:${bw}px" role="dialog" aria-label="Walkthrough">
-        <span class="eyebrow">${esc(st.name)}</span><h3>${esc(st.title)}</h3><p>${esc(st.text)}</p>
+        <span class="eyebrow">${esc(st.name)}</span><h3>${esc(st.title)}</h3>${st.bullets ? `<ul class="tour-list">${st.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : `<p>${esc(st.text)}</p>`}
         <div class="tour-dots">${TOUR.map((_,k)=>`<i class="${k===this.i?'on':''}"></i>`).join('')}</div>
         <div class="row gap">${this.i>0?'<button class="btn sm" data-act="tourBack">Back</button>':''}<span class="spacer"></span><button class="btn sm ghost" data-act="tourEnd">Skip</button><button class="btn sm yellow" data-act="tourNext">${this.i===TOUR.length-1?'Let’s go':'Next'}</button></div>
       </div>`;

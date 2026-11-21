@@ -467,3 +467,6 @@ legend{font-family:var(--head); font-weight:800; font-size:14px; padding:0; marg
 .map-sel.spot{align-items:flex-start; flex-wrap:wrap} .map-sel.spot .grow{display:flex; flex-direction:column; gap:2px; min-width:180px}
 .spot-acts{display:flex; gap:8px; flex-wrap:wrap; align-items:center; width:100%}
 .spot-pin{width:34px; height:34px; border-radius:50%; background:var(--pink); border:3px solid var(--ink); box-shadow:0 0 0 3px var(--yellow), 2px 3px 0 var(--ink); display:grid; place-items:center; font-size:17px; font-weight:900; line-height:1; color:var(--ink)}
+
+/* tour bullets */
+.tour-list{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:5px; font-size:14.5px; line-height:1.35}
