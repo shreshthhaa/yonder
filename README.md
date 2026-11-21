@@ -3,7 +3,9 @@
 Friend groups save reels, links and places into a shared bucket list, then use AI to plan, vote, go and rate.
 **Save → Plan (AI gives ideas) → Vote → Go → Rate.**
 
-Live: https://yonderapp.netlify.app
+Live (GitHub Pages, free, no credits): https://shreshthhaa.github.io/yonder/
+
+Also on Netlify (may be paused when its monthly credits run out): https://yonderapp.netlify.app
 
 ## What's here
 - `yonder/` – the website (plain HTML, CSS and JavaScript; no build step). Maps use MapLibre with OpenFreeMap / OpenStreetMap data.
@@ -13,6 +15,9 @@ Live: https://yonderapp.netlify.app
 - `prompts.md`, `eval-set-reels.md` – prompts used to build it, and the test links for reel reading.
 - `HANDOFF.md`, `groww-apm-assignment-log.md`, `scope-and-flow.md`, `user-story.md`, `market-research.md` – project notes.
 - `dist/yonder.html` – a single-file demo build (no server, no live AI).
+
+## Deploy
+Run `sh tools/deploy_pages.sh`. It publishes the `yonder/` folder to the `gh-pages` branch, and GitHub Pages serves it within a minute. No Netlify credits are used.
 
 ## Run it
 - Demo on your computer: open `yonder/index.html` with the config values empty in `yonder/config.js`.
