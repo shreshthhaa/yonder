@@ -1,5 +1,7 @@
 # Yonder: handoff for a new conversation
 
+> **Demo groups (latest):** a new guest gets Office gang (Bengaluru: Indiranagar, Koramangala, Bellandur, Marathahalli), Shopping (Bengaluru ethnic wear, with Shruti), Thailand trip (Phuket and Krabi, with a vote in progress) and Bandra Bunch (Mumbai). Needs `supabase/migration-demo-groups.sql` (already run). Coordinates for the new places are approximate (typed from memory), so check store outlets before presenting. Existing guests keep their old copy.
+
 > **Session 21 (latest):** every tab has its own address (`#/home`, `#/groups/<id>/<tab>`, `#/swipe`, `#/profile`) so Back/Forward work; invite links ask 'Join <group>?' first (SQL `supabase/migration-peek-group.sql`, already run in Supabase). Publish with `git push` then `sh tools/deploy_pages.sh`.
 
 > **Session 21 (later): hosting moved to GitHub Pages.** Netlify's free plan is credit-based (300/month; each publish costs 15 to 24, and running out pauses the site). The site is now also served free from **https://shreshthhaa.github.io/yonder/** (repo `shreshthhaa/yonder`, branch `gh-pages`). To publish: commit, `git push`, then `sh tools/deploy_pages.sh`. The Netlify copy is frozen at an older version unless re-published. 'Plan this' now opens a who/when box and puts the place straight on the calendar (no AI, no vote). Tour Groups step is bullets.

@@ -120,8 +120,9 @@ insert into public.profiles (id, name, color, home_area, taste, is_bot, onboarde
  ('00000000-0000-4000-8000-000000000002','Kabir','#2B44FF','Bandra','{"like":["speakeasy","livemusic","rooftop","streetfood"],"nope":["heritage"]}',true,true,true,true),
  ('00000000-0000-4000-8000-000000000003','Sana','#FFD60A','Khar','{"like":["cafes","dance","flea","rooftop"],"nope":["clubs"]}',true,true,true,true),
  ('00000000-0000-4000-8000-000000000004','Aman','#9AA8FF','Andheri','{"like":["streetfood","heritage","boardgames"],"nope":["speakeasy"]}',true,true,true,true),
- ('00000000-0000-4000-8000-000000000005','Dev','#111111','Powai','{"like":["boardgames","livemusic","pottery"],"nope":["clubs"]}',true,true,true,true),
- ('00000000-0000-4000-8000-000000000006','Meera','#FF9CCB','Dadar','{"like":["pottery","artcraft","cafes"],"nope":["streetfood"]}',true,true,true,true)
+ ('00000000-0000-4000-8000-000000000005','Dev','#111111','Bellandur, Bengaluru, India|12.9352,77.6701|IN','{"like":["boardgames","livemusic","pottery"],"nope":["clubs"]}',true,true,true,true),
+ ('00000000-0000-4000-8000-000000000006','Meera','#FF9CCB','Koramangala, Bengaluru, India|12.9352,77.6245|IN','{"like":["pottery","artcraft","cafes"],"nope":["streetfood"]}',true,true,true,true),
+ ('00000000-0000-4000-8000-000000000007','Shruti','#FFD60A','Jayanagar, Bengaluru, India|12.9250,77.5938|IN','{"like":["shopping","artcraft","flea","cafes"],"nope":["clubs"]}',true,true,true,true)
 on conflict (id) do nothing;
 
 -- ---------- helper functions ----------

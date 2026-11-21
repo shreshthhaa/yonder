@@ -14,8 +14,9 @@ const BOTS = {
   kabir: {id:'00000000-0000-4000-8000-000000000002', name:'Kabir', color:'#2B44FF', home_area:'Bandra', taste:{like:['speakeasy','livemusic','rooftop','streetfood'], nope:['heritage']}},
   sana:  {id:'00000000-0000-4000-8000-000000000003', name:'Sana',  color:'#FFD60A', home_area:'Khar', taste:{like:['cafes','dance','flea','rooftop'], nope:['clubs']}},
   aman:  {id:'00000000-0000-4000-8000-000000000004', name:'Aman',  color:'#9AA8FF', home_area:'Andheri', taste:{like:['streetfood','heritage','boardgames'], nope:['speakeasy']}},
-  dev:   {id:'00000000-0000-4000-8000-000000000005', name:'Dev',   color:'#111111', home_area:'Powai', taste:{like:['boardgames','livemusic','pottery'], nope:['clubs']}},
-  meera: {id:'00000000-0000-4000-8000-000000000006', name:'Meera', color:'#FF9CCB', home_area:'Dadar', taste:{like:['pottery','artcraft','cafes'], nope:['streetfood']}},
+  dev:   {id:'00000000-0000-4000-8000-000000000005', name:'Dev',   color:'#111111', home_area:'Bellandur, Bengaluru, India|12.9352,77.6701|IN', taste:{like:['boardgames','livemusic','pottery'], nope:['clubs']}},
+  meera: {id:'00000000-0000-4000-8000-000000000006', name:'Meera', color:'#FF9CCB', home_area:'Koramangala, Bengaluru, India|12.9352,77.6245|IN', taste:{like:['pottery','artcraft','cafes'], nope:['streetfood']}},
+  shruti:{id:'00000000-0000-4000-8000-000000000007', name:'Shruti', color:'#FFD60A', home_area:'Jayanagar, Bengaluru, India|12.9250,77.5938|IN', taste:{like:['shopping','artcraft','flea','cafes'], nope:['clubs']}},
 };
 const BOT_IDS = new Set(Object.values(BOTS).map(b=>b.id));
 
@@ -227,16 +228,27 @@ function nextDow(dow, minAhead=1){ const d=new Date(); d.setHours(12,0,0,0); let
 /* ---------------- demo seed (each new person gets their own copy) ---------------- */
 function buildDemoSeed(meId){
   const B = BOTS, ids = {};
-  const gPersonal = uuid(), gBB = uuid(), gOG = uuid();
+  const gPersonal = uuid(), gOG = uuid(), gSH = uuid(), gTH = uuid(), gBB = uuid();
   const groups = [
     {id:gPersonal, name:'Just me', color:'#111111', invite_code:code6(), memory:[], is_personal:true, is_demo:false, created_by:meId},
+    // Bengaluru, around the Groww office (Bellandur, Marathahalli, Indiranagar, Koramangala)
+    {id:gOG, name:'Office gang', color:'#2B44FF', invite_code:code6(), is_personal:false, is_demo:true, created_by:B.dev.id,
+      memory:['Sunday mornings work best','Meera: no seafood','Usually ₹800–1,500 each']},
+    // Bengaluru ethnic wear: a different use for the same app
+    {id:gSH, name:'Shopping', color:'#FF9CCB', invite_code:code6(), is_personal:false, is_demo:true, created_by:B.shruti.id,
+      memory:['Cousin’s wedding in December: need a lehenga and sarees','Shruti likes silk and pastel colours','Budget ₹5,000–15,000 per outfit']},
+    // An international trip
+    {id:gTH, name:'Thailand trip', color:'#FFD60A', invite_code:code6(), is_personal:false, is_demo:true, created_by:B.riya.id,
+      memory:['Phuket first, then Krabi','Sana doesn’t drink, loves good mocktails','Kabir wants beach clubs and nightlife','Riya wants to go snorkelling','Budget about ฿3,000 a day each']},
     {id:gBB, name:'Bandra Bunch', color:'#FF5CA8', invite_code:code6(), is_personal:false, is_demo:true, created_by:B.riya.id,
       memory:['Aman is vegetarian','Sana doesn’t drink, loves good mocktails','Kabir loves live music','Usually ₹1,000–2,000 each','Saturday evenings work best']},
-    {id:gOG, name:'Office gang', color:'#2B44FF', invite_code:code6(), is_personal:false, is_demo:true, created_by:B.dev.id,
-      memory:['Sunday mornings work best','Meera: no seafood']},
   ];
   const members = [
-    [gPersonal,meId],[gBB,meId],[gBB,B.riya.id],[gBB,B.kabir.id],[gBB,B.sana.id],[gBB,B.aman.id],[gOG,meId],[gOG,B.dev.id],[gOG,B.meera.id],
+    [gPersonal,meId],
+    [gOG,meId],[gOG,B.dev.id],[gOG,B.meera.id],
+    [gSH,meId],[gSH,B.shruti.id],
+    [gTH,meId],[gTH,B.riya.id],[gTH,B.kabir.id],[gTH,B.sana.id],[gTH,B.dev.id],
+    [gBB,meId],[gBB,B.riya.id],[gBB,B.kabir.id],[gBB,B.sana.id],[gBB,B.aman.id],
   ].map(([group_id,user_id])=>({group_id,user_id}));
   const P = (key, gid, name, by, dayOff, h, src, extra={}) => {
     const base = PLACE_DB.find(p=>p.name===name) || {};
@@ -245,7 +257,51 @@ function buildDemoSeed(meId){
       added_by:by, done:false, created_at:isoAt(dayOff,h,4)};
     ids[key]=row.id; return row;
   };
+  const BLR = ', Bengaluru';
   const places = [
+    /* ---- Office gang: Indiranagar, Koramangala, Bellandur, Marathahalli and around ---- */
+    P('o1',gOG,'Toit',B.dev.id,-6,23,'ig',{area:'Indiranagar'+BLR, category:'bars', price:'~₹1,800 for two', note:'Brewpub on 100 Feet Road', ll:[12.9791,77.6404]}),
+    P('o2',gOG,'Weekend pottery wheel class',B.meera.id,-8,10,'ig',{area:'Indiranagar'+BLR, category:'workshop', price:'~₹1,800 per person', note:'Beginner-friendly, 2 hours', ll:[12.9784,77.6408]}),
+    P('o3',gOG,'Agara Lake',meId,-5,20,'ig',{area:'Agara, near Bellandur'+BLR, category:'sunset', price:'Free', note:'Lakeside walk, good at sunset', ll:[12.9220,77.6465]}),
+    P('o4',gOG,'Glen’s Bakehouse',B.meera.id,-4,11,'list',{area:'Indiranagar'+BLR, category:'cafe', price:'~₹700 for two', note:'Bakes and brunch', ll:[12.9718,77.6413]}),
+    P('o5',gOG,'Third Wave Coffee',B.meera.id,-4,11,'list',{area:'Koramangala'+BLR, category:'cafe', price:'~₹600 for two', note:'Specialty coffee, good for laptops', ll:[12.9352,77.6171]}),
+    P('o6',gOG,'Truffles',B.dev.id,-3,13,'ig',{area:'Koramangala'+BLR, category:'food', price:'~₹800 for two', note:'Burgers and ribs, always busy', ll:[12.9344,77.6196]}),
+    P('o7',gOG,'Meghana Foods',B.dev.id,-3,13,'ig',{area:'Koramangala'+BLR, category:'food', price:'~₹900 for two', note:'The biryani everyone queues for', ll:[12.9348,77.6146]}),
+    P('o8',gOG,'Social',meId,-2,19,'ig',{area:'Koramangala'+BLR, category:'bars', price:'~₹1,600 for two', note:'Casual bar, easy for big groups', ll:[12.9337,77.6137]}),
+    P('o9',gOG,'Bellandur Lake',B.dev.id,-9,18,'yt',{area:'Bellandur'+BLR, category:'sunset', price:'Free', note:'Lakeside views near the office', ll:[12.9352,77.6701]}),
+    P('o10',gOG,'HAL Aerospace Museum',B.meera.id,-7,15,'list',{area:'Marathahalli'+BLR, category:'shows', price:'Low entry fee', note:'Aircraft and a good Sunday outing', ll:[12.9588,77.6657]}),
+    P('o11',gOG,'Innovative Multiplex',B.dev.id,-1,17,'manual',{area:'Marathahalli'+BLR, category:'shows', price:'~₹300 per ticket', note:'Movies after work', ll:[12.9565,77.7005]}),
+    P('o12',gOG,'Phoenix Marketcity',meId,-1,12,'manual',{area:'Mahadevapura'+BLR, category:'shop', price:'Varies', note:'Big mall: shops, food court, cinema', ll:[12.9959,77.6969]}),
+    P('o13',gOG,'Ulsoor Lake',B.meera.id,-10,16,'yt',{area:'Halasuru'+BLR, category:'sunset', price:'Free', note:'Boating and a quiet walk', ll:[12.9833,77.6200]}),
+    /* ---- Shopping: ethnic wear around Commercial Street, MG Road, Jayanagar, JP Nagar ---- */
+    P('s1',gSH,'Commercial Street',B.shruti.id,-6,17,'ig',{area:'Commercial Street'+BLR, category:'shop', price:'Free to browse', note:'Sarees, kurtas and lehengas in one lane', ll:[12.9822,77.6083]}),
+    P('s2',gSH,'Lehenga & bridal wear shops',B.shruti.id,-6,17,'ig',{area:'Commercial Street'+BLR, category:'shop', price:'₹8,000–40,000 a lehenga', note:'Bridal and party lehengas, bargain hard', ll:[12.9826,77.6079]}),
+    P('s3',gSH,'Biba',B.shruti.id,-5,12,'list',{area:'Commercial Street'+BLR, category:'shop', price:'~₹2,000–6,000 a kurta set', note:'Everyday and festive kurtas', ll:[12.9819,77.6077]}),
+    P('s4',gSH,'W for Woman',meId,-5,12,'list',{area:'Commercial Street'+BLR, category:'shop', price:'~₹1,500–4,000', note:'Kurtas and fusion wear', ll:[12.9817,77.6087]}),
+    P('s5',gSH,'KSIC Silk Showroom',B.shruti.id,-4,15,'ig',{area:'MG Road'+BLR, category:'shop', price:'₹5,000–25,000 a saree', note:'Government Mysore silk at fixed prices', ll:[12.9757,77.6070]}),
+    P('s6',gSH,'Nalli Silks',B.shruti.id,-3,11,'ig',{area:'Jayanagar'+BLR, category:'shop', price:'₹6,000–30,000 a saree', note:'Kanchipuram and Mysore silk sarees', ll:[12.9254,77.5836]}),
+    P('s7',gSH,'Jayanagar 4th Block Shopping Complex',meId,-3,11,'list',{area:'Jayanagar'+BLR, category:'shop', price:'Free to browse', note:'Kurtas, dupattas and sarees under one roof', ll:[12.9249,77.5833]}),
+    P('s8',gSH,'Chickpet Saree Market',B.shruti.id,-2,10,'yt',{area:'Chickpet'+BLR, category:'shop', price:'₹1,000–15,000 a saree', note:'The old saree market: go early', ll:[12.9690,77.5780]}),
+    P('s9',gSH,'Manyavar',meId,-1,14,'list',{area:'JP Nagar'+BLR, category:'shop', price:'~₹5,000–20,000 a set', note:'Sherwanis and kurtas for the wedding', ll:[12.9066,77.5858]}),
+    P('s10',gSH,'Soch',B.shruti.id,-1,14,'list',{area:'JP Nagar'+BLR, category:'shop', price:'~₹3,000–12,000', note:'Sarees, suits and lehengas', ll:[12.9073,77.5861]}),
+    /* ---- Thailand trip: Phuket first, then Krabi ---- */
+    P('t1',gTH,'Jet skiing at Patong Beach',B.kabir.id,-7,22,'ig',{area:'Patong, Phuket', category:'sunset', price:'~฿1,000 per ride', note:'Rides by the half hour; check the price first', ll:[7.8964,98.2931]}),
+    P('t2',gTH,'Yona Beach Club',B.kabir.id,-7,22,'ig',{area:'Layan, Phuket', category:'bars', price:'~฿2,500 per person', note:'Beach club with a pool and sunset views', ll:[8.0015,98.2950]}),
+    P('t3',gTH,'Illuzion Phuket',B.kabir.id,-6,23,'ig',{area:'Patong, Phuket', category:'bars', price:'~฿1,500 with drinks', note:'Big nightclub just off Bangla Road', ll:[7.8938,98.2983]}),
+    P('t4',gTH,'Bangla Road',B.riya.id,-6,9,'yt',{area:'Patong, Phuket', category:'bars', price:'Free to walk', note:'Patong’s nightlife street', ll:[7.8929,98.2965]}),
+    P('t5',gTH,'Simon Cabaret',B.sana.id,-5,18,'ig',{area:'Patong, Phuket', category:'shows', price:'~฿800 per ticket', note:'Famous cabaret show', ll:[7.8976,98.2996]}),
+    P('t6',gTH,'Promthep Cape',B.riya.id,-5,12,'yt',{area:'Rawai, Phuket', category:'sunset', price:'Free', note:'Phuket’s classic sunset view', ll:[7.7616,98.3051]}),
+    P('t7',gTH,'Big Buddha Phuket',B.sana.id,-4,10,'list',{area:'Chalong, Phuket', category:'sunset', price:'Free', note:'Hilltop statue with island views', ll:[7.8274,98.3126]}),
+    P('t8',gTH,'Old Phuket Town & Thalang Road',B.sana.id,-4,10,'list',{area:'Phuket Town', category:'food', price:'Free to walk', note:'Shophouses, cafés and a Sunday walking street', ll:[7.8845,98.3868]}),
+    P('t9',gTH,'Jungceylon',B.riya.id,-3,16,'manual',{area:'Patong, Phuket', category:'shop', price:'Varies', note:'Mall right by Bangla Road', ll:[7.8960,98.2961]}),
+    P('t10',gTH,'Railay Beach',B.riya.id,-3,9,'yt',{area:'Railay, Krabi', category:'sunset', price:'Boat ~฿100 each way', note:'Only reachable by boat; limestone cliffs', ll:[8.0092,98.8383]}),
+    P('t11',gTH,'Phra Nang Cave Beach',B.riya.id,-3,9,'yt',{area:'Railay, Krabi', category:'sunset', price:'Free', note:'Postcard beach next to Railay', ll:[8.0058,98.8377]}),
+    P('t12',gTH,'Four Islands snorkelling trip',B.riya.id,-2,10,'ig',{area:'Ao Nang, Krabi', category:'sunset', price:'~฿1,200 per person', note:'Longtail boat to Koh Poda and Chicken Island', ll:[7.9983,98.7757]}),
+    P('t13',gTH,'Hong Islands snorkelling',B.riya.id,-2,10,'ig',{area:'Krabi', category:'sunset', price:'~฿1,800 per person', note:'Clear water and a quiet lagoon', ll:[8.0771,98.7131]}),
+    P('t14',gTH,'Ao Nang Night Market',B.sana.id,-2,19,'list',{area:'Ao Nang, Krabi', category:'food', price:'~฿300 per person', note:'Seafood grills and Thai desserts', ll:[8.0346,98.8240]}),
+    P('t15',gTH,'Thai cooking class',B.sana.id,-1,11,'ig',{area:'Ao Nang, Krabi', category:'workshop', price:'~฿1,200 per person', note:'Market visit and four dishes', ll:[8.0330,98.8222]}),
+    P('t16',gTH,'Tiger Cave Temple',B.dev.id,-1,15,'yt',{area:'Krabi Town', category:'shows', price:'Free', note:'1,237 steps up for the view', ll:[8.1256,98.9253]}),
+    /* ---- Bandra Bunch (Mumbai) ---- */
     P('p1',gBB,'PCO',B.riya.id,-3,23,'ig',{url:'https://www.instagram.com/p/DebylfgExy0/'}),
     P('p2',gBB,'Slink & Bardot',B.riya.id,-3,23,'ig',{url:'https://www.instagram.com/p/DebylfgExy0/'}),
     P('p3',gBB,'Ocho',B.riya.id,-3,23,'ig',{url:'https://www.instagram.com/p/DebylfgExy0/'}),
@@ -257,26 +313,58 @@ function buildDemoSeed(meId){
     P('p9',gBB,'Bandra Fort',B.kabir.id,-1,12,'yt'),
     P('p10',gBB,'The Habitat',meId,0,10,'manual'),
     P('p11',gBB,'Carter Road promenade',B.aman.id,-12,18,'manual'),
-    P('o1',gOG,'PCO',B.dev.id,-6,23,'ig'),
-    P('o2',gOG,'Weekend pottery wheel class',B.meera.id,-8,10,'ig'),
-    P('o3',gOG,'AER',meId,-5,20,'ig'),
   ];
-  const interests = [['p1',B.kabir.id],['p1',B.riya.id],['p3',B.kabir.id],['p5',B.riya.id],['p7',B.aman.id],['p8',B.kabir.id],['p9',B.sana.id],['p9',B.riya.id],['p10',B.sana.id],['o1',B.dev.id],['o2',B.dev.id],['o2',meId]]
+  const interests = [['p1',B.kabir.id],['p1',B.riya.id],['p3',B.kabir.id],['p5',B.riya.id],['p7',B.aman.id],['p8',B.kabir.id],['p9',B.sana.id],['p9',B.riya.id],['p10',B.sana.id],
+    ['o1',B.dev.id],['o2',B.dev.id],['o2',meId],['o3',B.meera.id],['o7',B.meera.id],['o6',meId],
+    ['s1',meId],['s2',B.shruti.id],['s5',B.shruti.id],['s6',meId],['s6',B.shruti.id],
+    ['t1',B.kabir.id],['t2',B.kabir.id],['t2',B.sana.id],['t12',B.riya.id],['t12',B.sana.id],['t13',B.riya.id],['t6',B.riya.id],['t6',meId]]
     .map(([k,u])=>({place_id:ids[k], user_id:u, group_id: places.find(p=>p.id===ids[k]).group_id}));
   const M = (gid, by, dayOff, h, m, kind, body, data=null) => ({id:uuid(), group_id:gid, user_id:by, kind, body, data, created_at:isoAt(dayOff,h,m)});
   const share = (title, src, keys, extra={}) => ({title, source_kind:src, place_ids:keys.map(k=>ids[k]), ...extra});
-  // Past plan (Carter Road, 6 days ago) → triggers "Did you go?". Upcoming plan for Office gang.
-  const plCarter = uuid(), plPottery = uuid();
-  const sun = nextDow(0, 2);
+  const opt = (key, why) => { const p = places.find(x=>x.id===ids[key]); return {name:p.name, area:p.area, category:p.category, price:p.price, why, place_id:p.id}; };
+  const plCarter = uuid(), plPottery = uuid(), plSaree = uuid(), plKrabi = uuid();
+  const sun = nextDow(0, 2), sat = nextDow(6, 2);
   const plans = [
     {id:plCarter, group_id:gBB, created_by:B.aman.id, title:'Sunset walk at Carter Road', status:'confirmed', place_id:ids.p11,
-      options:[{name:'Carter Road promenade', area:'Bandra', category:'sunset', price:'Free', why:'Everyone free on Saturday; Aman is back from Pune', place_id:ids.p11}], chosen:0,
+      options:[opt('p11','Everyone free on Saturday; Aman is back from Pune')], chosen:0,
       date:ymd(daysFrom(-6)), time:'5:30 pm', who:[meId,B.riya.id,B.kabir.id,B.sana.id,B.aman.id], prefs:{}, created_at:isoAt(-9,11,0)},
     {id:plPottery, group_id:gOG, created_by:B.meera.id, title:'Pottery wheel class', status:'confirmed', place_id:ids.o2,
-      options:[{name:'Weekend pottery wheel class', area:'Bandra', category:'workshop', price:'~₹1,800 per person', why:'Meera and Dev both want to try it', place_id:ids.o2}], chosen:0,
+      options:[opt('o2','Meera and Dev both want to try it')], chosen:0,
       date:ymd(sun), time:'11:00 am', who:[meId,B.dev.id,B.meera.id], prefs:{}, created_at:isoAt(-7,10,40)},
+    {id:plSaree, group_id:gSH, created_by:B.shruti.id, title:'Saree shopping at Commercial Street', status:'confirmed', place_id:ids.s1,
+      options:[opt('s1','Start here, then KSIC on MG Road')], chosen:0,
+      date:ymd(sat), time:'11:00 am', who:[meId,B.shruti.id], prefs:{}, created_at:isoAt(-3,20,0)},
+    {id:plKrabi, group_id:gTH, created_by:B.sana.id, title:'Krabi snorkelling day', status:'voting', place_id:null,
+      options:[opt('t12','Riya and Sana both saved it; about ฿1,200 each'), opt('t13','Quieter water, a bit pricier at about ฿1,800'), opt('t10','Beach day instead: Railay is a short boat ride')], chosen:null,
+      date:ymd(daysFrom(30)), time:null, who:[meId,B.riya.id,B.kabir.id,B.sana.id,B.dev.id], prefs:{}, created_at:isoAt(-1,18,0)},
   ];
   const messages = [
+    /* Office gang */
+    M(gOG,B.meera.id,-8,10,0,'share','',share('Pottery classes for total beginners','ig',['o2'])),
+    M(gOG,B.dev.id,-8,10,30,'text','Sunday? I’m in'),
+    M(gOG,B.meera.id,-7,10,40,'plan','Plan confirmed',{plan_id:plPottery}),
+    M(gOG,B.dev.id,-6,23,10,'share','',share('Best brewpubs in Indiranagar','ig',['o1'])),
+    M(gOG,B.dev.id,-3,13,5,'share','',share('Koramangala food you must try','ig',['o6','o7'])),
+    M(gOG,meId,-5,20,0,'share','',share('Agara Lake at sunset','ig',['o3'])),
+    M(gOG,B.meera.id,-4,11,20,'text','post-work coffee at Third Wave this week?'),
+    /* Shopping */
+    M(gSH,B.shruti.id,-6,17,0,'text','ok so for the wedding we need lehengas AND sarees. help'),
+    M(gSH,B.shruti.id,-6,17,10,'share','',share('Where to buy lehengas in Bangalore','ig',['s1','s2'])),
+    M(gSH,B.shruti.id,-5,12,5,'share','',share('Kurta shops we both like','list',['s3','s4'])),
+    M(gSH,B.shruti.id,-4,15,0,'share','',share('Silk saree shopping guide','ig',['s5','s6'])),
+    M(gSH,B.shruti.id,-3,20,0,'plan','Plan confirmed',{plan_id:plSaree}),
+    M(gSH,B.shruti.id,-3,20,5,'text','Saturday works. KSIC first, they close early'),
+    /* Thailand */
+    M(gTH,B.riya.id,-7,21,0,'text','THAILAND IS HAPPENING. phuket first, then krabi'),
+    M(gTH,B.kabir.id,-7,22,5,'share','',share('Phuket beach clubs and nightlife','ig',['t1','t2','t3'])),
+    M(gTH,B.riya.id,-6,9,10,'share','',share('Phuket in 3 days','yt',['t4','t6'])),
+    M(gTH,B.sana.id,-5,18,5,'share','',share('Things to do in Patong','ig',['t5'])),
+    M(gTH,B.sana.id,-4,10,10,'share','',share('Phuket sights and old town','list',['t7','t8'])),
+    M(gTH,B.riya.id,-3,9,10,'share','',share('Krabi: beaches and islands','yt',['t10','t11'])),
+    M(gTH,B.riya.id,-2,10,10,'share','',share('Snorkelling in Krabi','ig',['t12','t13'])),
+    M(gTH,B.sana.id,-1,18,0,'plan','Vote started',{plan_id:plKrabi}),
+    M(gTH,B.kabir.id,-1,18,20,'text','vote done soon, snorkelling is a must'),
+    /* Bandra Bunch */
     M(gBB,B.aman.id,-9,11,0,'plan','Plan confirmed',{plan_id:plCarter}),
     M(gBB,B.sana.id,-4,21,12,'text','guys we NEED to do something new this weekend. not the same café again'),
     M(gBB,B.kabir.id,-4,21,15,'text','agreed. someone find a place'),
@@ -287,10 +375,6 @@ function buildDemoSeed(meId){
     M(gBB,B.aman.id,-1,11,2,'text','I’m in Pune for work next weekend btw, go without me if it’s then'),
     M(gBB,B.kabir.id,-1,12,15,'share','',share('Best sunset spots in Bandra','yt',['p9'])),
     M(gBB,meId,0,10,2,'share','',share('The Habitat (open mics on Fridays)','manual',['p10'])),
-    M(gOG,B.meera.id,-8,10,0,'share','',share('Pottery classes for total beginners','ig',['o2'])),
-    M(gOG,B.dev.id,-8,10,30,'text','Sunday? I’m in'),
-    M(gOG,B.meera.id,-7,10,40,'plan','Plan confirmed',{plan_id:plPottery}),
-    M(gOG,meId,-5,20,0,'share','',share('AER rooftop at sunset','ig',['o3'])),
   ];
   return {groups, members, places, interests, messages, plans, votes:[], ratings:[]};
 }

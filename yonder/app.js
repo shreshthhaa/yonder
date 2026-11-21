@@ -79,7 +79,10 @@ function toast(msg){ const r=$('#toast-root'); r.innerHTML=`<div class="toast" r
 const store = { get(k,d){ try{ const v=localStorage.getItem('yonder-ui-'+k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem('yonder-ui-'+k, JSON.stringify(v)); }catch(e){} } };
 
 /* ================= derived data ================= */
-const myGroups = () => D.groups.filter(g=>D.members.some(m=>m.group_id===g.id && m.user_id===me().id));
+// Demo groups in a fixed order (Bengaluru ones first); a person's own groups follow.
+const DEMO_ORDER = ['Office gang','Shopping','Thailand trip','Bandra Bunch'];
+const groupRank = g => { const i = DEMO_ORDER.indexOf(g.name); return g.is_demo && i>=0 ? i : 50; };
+const myGroups = () => D.groups.filter(g=>D.members.some(m=>m.group_id===g.id && m.user_id===me().id)).sort((a,b)=>groupRank(a)-groupRank(b));
 const sharedGroups = () => myGroups().filter(g=>!g.is_personal);
 const personal = () => myGroups().find(g=>g.is_personal);
 const groupById = id => D.groups.find(g=>g.id===id);
@@ -708,17 +711,15 @@ function addHereDot(e, ll){
   if(e.here) e.here.remove(); const d = document.createElement('div'); d.className = 'here-dot'; d.title = 'You';
   e.here = new maplibregl.Marker({element:d}).setLngLat([ll[1],ll[0]]).addTo(e.map);
 }
-/* The map opens where the person is: their saved area first. Without one, their device location, then their saved places, then the world. */
+/* The map opens on where the person is, together with the group's places around them (within about 20 km), so pins are visible straight away.
+   If the group's places are somewhere else entirely (a trip abroad), it opens on those places instead. Without a saved area it asks for the device location. */
 function openingView(e, pts){
   const h = homeLL();
-  if(e.big){
-    if(h){ e.map.jumpTo({center:[h[1],h[0]], zoom:12}); return; }
-    fitTo(e, pts);
-    if(navigator.geolocation) navigator.geolocation.getCurrentPosition(pos=>{ if(e.map && !e.gone){ e.map.flyTo({center:[pos.coords.longitude,pos.coords.latitude], zoom:12}); addHereDot(e, [pos.coords.latitude,pos.coords.longitude]); } }, ()=>{}, {timeout:8000, maximumAge:600000});
-    return;
-  }
-  // Preview: centred on where the person is (their saved area, e.g. Powai), with their saved places around it.
-  if(h){ e.map.jumpTo({center:[h[1],h[0]], zoom:12}); addHereDot(e, h); } else fitTo(e, pts);
+  const around = h ? pts.filter(pt=>km(h,[pt[1],pt[0]]) < 20) : [];
+  if(h && around.length){ fitTo(e, [[h[1],h[0]], ...around]); return; }
+  if(h && !pts.length){ e.map.jumpTo({center:[h[1],h[0]], zoom:12}); return; }
+  fitTo(e, pts);
+  if(!h && e.big && navigator.geolocation) navigator.geolocation.getCurrentPosition(pos=>{ if(e.map && !e.gone){ e.map.flyTo({center:[pos.coords.longitude,pos.coords.latitude], zoom:12}); addHereDot(e, [pos.coords.latitude,pos.coords.longitude]); } }, ()=>{}, {timeout:8000, maximumAge:600000});
 }
 function refreshPins(){
   for(const k of ['mini','big']){ const e = mapMgr[k]; if(!e || !e.map) continue; const pts = drawPins(e); if(k==='mini') openingView(e, pts); }
@@ -734,7 +735,7 @@ function buildMap(k, el){
     map.addControl(new maplibregl.AttributionControl({compact:true}), 'bottom-right');
     if(big) map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-left');
     const pts = drawPins(e); openingView(e, pts);
-    if(big){ const h = homeLL(); if(h) addHereDot(e, h); }
+    { const h = homeLL(); if(h) addHereDot(e, h); }
     e.el.classList.remove('loading');
   }).catch(()=>{ if(!e.gone) e.el.innerHTML = '<div class="map-off">The map needs an internet connection.</div>'; });
   return e;
@@ -1111,7 +1112,7 @@ function modalView(){
   else if(m.type==='onboard') inner = onboardModal(m);
   else if(m.type==='welcome') inner = `<div class="welcome"><div class="brand big">${LOGO}<span>yonder</span></div><h2>Hi ${esc(me().name)}! Save. Plan. Go.</h2>
       <ol class="steps3 compact"><li class="st st-pink"><b>1 · Save</b><span>Drop in reels. We find the places.</span></li><li class="st st-yellow"><b>2 · Plan</b><span>AI picks 3 that fit your group.</span></li><li class="st st-blue"><b>3 · Go</b><span>Vote, lock a date, rate it.</span></li></ol>
-      <p class="muted">${me().is_guest ? 'You’re in <b>Bandra Bunch</b>, a demo group with 4 friends. Try anything.' : 'Start by making a group and inviting your friends.'}</p>
+      <p class="muted">${me().is_guest ? 'Your demo has four groups: <b>Office gang</b> and <b>Shopping</b> (Bengaluru), a <b>Thailand trip</b> and <b>Bandra Bunch</b> (Mumbai). Try anything.' : 'Start by making a group and inviting your friends.'}</p>
       <div class="row gap wrap center"><button class="btn yellow xl" data-act="startTour">${ic('spark')} Quick tour (30 sec)</button><button class="btn xl" data-act="skipTour">I’ll explore myself</button></div></div>`;
   const enter = render.lastModal !== m.type + (m.step||'');
   return `<div class="modal-wrap ${enter?'enter':''}" data-act="closeModalBg"><div class="modal card ${m.type} ${enter?'enter':''}" role="dialog" aria-modal="true">${m.noClose?'':`<button class="mclose" data-act="closeModal" aria-label="Close">${ic('x')}</button>`}${inner}</div></div>`;
