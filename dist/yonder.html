@@ -1277,8 +1277,9 @@ const upcoming = () => D.plans.filter(p=>p.status==='confirmed' && p.date && p.d
 const votingIn = gid => plansOf(gid).filter(p=>p.status==='voting');
 
 /* ================= UI state ================= */
+// A plain link always opens Home; an address with #/… opens that page (see applyRoute).
 const S = {
-  booted:false, auth:'signedOut', view: store.get('view','home'), gid: store.get('gid',null), panel: store.get('panel','plan'),
+  booted:false, auth:'signedOut', view:'home', gid: store.get('gid',null), panel: store.get('panel','plan'),
   cat:'all', sel:null, calMonth:null, calDay:null, modal:null, prefs:{}, results:{}, busy:null, drafts:{}, swipeIdx:0,
   stick:true, authTab:'guest', authErr:'', joinCode:null, hintClosed: store.get('hints',{}), mobilePane:'chat',
   geo:{q:'', results:[], busy:false, err:'', pick:null},
