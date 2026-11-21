@@ -1,0 +1,326 @@
+<title>Group Outing Planner Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a journey rail of 8 stage cards (the real order of use), then a map of how the 4 group tabs pass things to each other. */
+:root {
+  --bg: #f5f6f2;
+  --surface: #ffffff;
+  --ink: #1c2321;
+  --muted: #5a6662;
+  --line: #d7ddd8;
+  --accent: #0e7a6a;      /* map-pin teal */
+  --accent-soft: #dcefeb;
+  --marigold: #c98a0b;    /* secondary: Indian marigold */
+  --must: #1f8a4c;
+  --should: #c98a0b;
+  --vision: #8a948f;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121715; --surface: #1a211e; --ink: #e8eeeb; --muted: #9aa8a2; --line: #2e3833;
+    --accent: #3fc0a8; --accent-soft: #1d3632; --marigold: #e8b23d;
+    --must: #4cc47f; --should: #e8b23d; --vision: #7d8a84; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1a211e; --ink: #e8eeeb; --muted: #9aa8a2; --line: #2e3833;
+  --accent: #3fc0a8; --accent-soft: #1d3632; --marigold: #e8b23d;
+  --must: #4cc47f; --should: #e8b23d; --vision: #7d8a84; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 700; }
+h3 { font-size: 17px; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.intro { display: flex; flex-direction: column; gap: 12px; max-width: 70ch; }
+.intro p { color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.dot.must { background: var(--must); }
+.dot.should { background: var(--should); }
+.dot.vision { background: transparent; border: 2px solid var(--vision); }
+
+section { display: flex; flex-direction: column; gap: 20px; }
+.section-head { display: flex; flex-direction: column; gap: 6px; }
+.section-head p { color: var(--muted); max-width: 70ch; }
+
+/* Journey rail */
+.rail { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 32px; counter-reset: stage; }
+.stage {
+  position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.stage::after {
+  content: "→"; position: absolute; right: -24px; top: 18px; color: var(--accent); font-size: 18px; font-weight: 600;
+}
+.stage:nth-child(4n)::after, .stage:last-child::after { content: none; }
+.stage-top { display: flex; align-items: baseline; gap: 10px; }
+.num { font-family: var(--font-mono); font-size: 12px; color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; }
+.screens { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
+.screens li { display: flex; gap: 8px; align-items: baseline; }
+.screens .dot { position: relative; top: 1px; }
+.id { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); min-width: 2.2em; }
+.branch { border-left: 2px solid var(--marigold); padding-left: 10px; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+.branch b { color: var(--ink); font-weight: 600; }
+.story { font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; margin-top: auto; }
+.story b { color: var(--marigold); font-weight: 600; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.03em; }
+.loop {
+  display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted);
+  border: 1px dashed var(--accent); border-radius: 8px; padding: 10px 14px; background: var(--accent-soft);
+}
+.loop strong { color: var(--ink); }
+
+/* Side panel: personal space */
+.side { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.side .stage::after { content: none; }
+
+/* Diagram */
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.box { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+.box.tab { fill: var(--accent-soft); stroke: var(--accent); }
+.box.src { fill: var(--surface); stroke: var(--marigold); stroke-dasharray: 5 4; }
+.t-title { font-family: var(--font-display); font-weight: 700; font-size: 17px; fill: var(--ink); }
+.t-body { font-family: var(--font-body); font-size: 12.5px; fill: var(--muted); }
+.t-tag { font-family: var(--font-mono); font-size: 11px; fill: var(--accent); letter-spacing: 0.06em; }
+.edge { fill: none; stroke: var(--accent); stroke-width: 1.8; }
+.edge.warm { stroke: var(--marigold); }
+.t-edge { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+.arrowhead { fill: var(--accent); }
+.arrowhead.warm { fill: var(--marigold); }
+.note { font-size: 13px; color: var(--muted); }
+
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+
+@media (max-width: 920px) {
+  .rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stage:nth-child(4n)::after { content: "→"; }
+  .stage:nth-child(2n)::after { content: none; }
+  .side { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .rail { grid-template-columns: 1fr; gap: 30px; }
+  .stage::after, .stage:nth-child(4n)::after { content: "↓"; right: auto; left: 20px; top: auto; bottom: -27px; }
+  .stage:nth-child(2n)::after { content: "↓"; }
+  .stage:last-child::after { content: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <span class="eyebrow">Groww APM assignment · Draft v3 flow</span>
+    <h1>From "we should go here someday" to "we're going Saturday"</h1>
+    <p>How one friend group saves places from reels, plans together, and actually goes. Screen IDs match <span class="id">scope-and-flow.md</span>. The small italic line on each step follows the "Bandra Bunch" user story.</p>
+    <div class="legend" aria-label="Legend">
+      <span><i class="dot must"></i>Must show in prototype</span>
+      <span><i class="dot should"></i>If time allows</span>
+      <span><i class="dot vision"></i>Vision only (write-up)</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="journey">
+    <div class="section-head">
+      <h2 id="journey">The main journey</h2>
+      <p>Eight steps, in the order a group uses them. After "Did you go?", the place is crossed off and the group goes back to its bucket list.</p>
+    </div>
+
+    <div class="rail">
+      <article class="stage">
+        <div class="stage-top"><span class="num">1</span><h3>Get in</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">A1</span>Login with phone or Google</li>
+          <li><i class="dot must"></i><span class="id">A2</span>Taste swipe: right or left on activities</li>
+          <li><i class="dot must"></i><span class="id">A3</span>Home city · location while using <i class="dot should" title="If time allows"></i></li>
+        </ul>
+        <p class="story"><b>MON</b> Riya swipes right on cafés, pottery and comedy; left on clubs.</p>
+      </article>
+
+      <article class="stage">
+        <div class="stage-top"><span class="num">2</span><h3>Join a group</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">B1</span>Home: all my groups</li>
+          <li><i class="dot must"></i><span class="id">B2</span>Create · share invite link or code</li>
+          <li><i class="dot should"></i><span class="id">B2</span>Invite from contacts (optional)</li>
+          <li><i class="dot must"></i><span class="id">B3</span>Join via link or code</li>
+        </ul>
+        <p class="story"><b>MON</b> "Bandra Bunch" link goes into WhatsApp; Kabir joins with the code.</p>
+      </article>
+
+      <article class="stage">
+        <div class="stage-top"><span class="num">3</span><h3>Save from anywhere</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">C1</span>Share pop-up over Instagram, YouTube, Pinterest</li>
+          <li><i class="dot must"></i><span class="id">C2</span>Paste a link or a typed list</li>
+        </ul>
+        <div class="branch">
+          <span><b>AI is sure</b> → places pre-ticked → Save</span>
+          <span><b>Partly sure</b> → "one of these 3?" in step 4</span>
+          <span><b>No idea</b> → "Tell you later"</span>
+        </div>
+        <p class="story"><b>TUE 11 PM</b> Riya shares a speakeasy reel; 4 bars saved in 5 seconds.</p>
+      </article>
+
+      <article class="stage">
+        <div class="stage-top"><span class="num">4</span><h3>Confirm</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">C3</span>Pop-up when the app opens: Yes / pick / search / later</li>
+          <li><i class="dot vision"></i><span class="id">—</span>Guess the place from the cover photo</li>
+        </ul>
+        <p class="story"><b>THU</b> "Which place was the late-night food post?" Riya types 3 letters and picks.</p>
+      </article>
+
+      <article class="stage">
+        <div class="stage-top"><span class="num">5</span><h3>Browse the bucket list</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">D1</span>List by category, with filters</li>
+          <li><i class="dot must"></i><span class="id">D2</span>Map toggle in the same tab</li>
+          <li><i class="dot must"></i><span class="id">D3</span>Place details · edit only your own</li>
+        </ul>
+        <p class="story"><b>WED</b> Sana flips to Map: pins around Bandra, Santacruz, Worli.</p>
+      </article>
+
+      <article class="stage">
+        <div class="stage-top"><span class="num">6</span><h3>Plan with the AI</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">E0</span>Plan tab: all plans + "New plan"</li>
+          <li><i class="dot must"></i><span class="id">E1</span>Tap answers: who's coming, when, kind, budget, where, must-haves</li>
+          <li><i class="dot must"></i><span class="id">E2</span>Ideas from your list + new for you</li>
+        </ul>
+        <p class="story"><b>FRI 4 PM</b> Kabir unticks Aman (away), so veg-only no longer applies.</p>
+      </article>
+
+      <article class="stage">
+        <div class="stage-top"><span class="num">7</span><h3>Vote on the top 3</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">E3</span>Drag to rank 1-2-3 (3/2/1 points)</li>
+          <li><i class="dot must"></i><span class="id">E3</span>"Doesn't work for me" flag</li>
+          <li><i class="dot must"></i><span class="id">E3</span>Only people coming vote · deadline</li>
+        </ul>
+        <p class="story"><b>FRI 7 PM</b> Sana flags the bar with no mocktails. Ocho wins with 8 points.</p>
+      </article>
+
+      <article class="stage">
+        <div class="stage-top"><span class="num">8</span><h3>Go, then cross it off</h3></div>
+        <ul class="screens">
+          <li><i class="dot must"></i><span class="id">E4</span>Plan card: time, cost each, directions, booking link</li>
+          <li><i class="dot must"></i><span class="id">D4</span>Calendar + reminders</li>
+          <li><i class="dot must"></i><span class="id">E5</span>"Did you go?" → crossed off + rating</li>
+        </ul>
+        <p class="story"><b>SUN</b> Riya taps Yes, rates it 4 stars. Ocho moves to "Done".</p>
+      </article>
+    </div>
+
+    <div class="loop" role="note"><strong>↺ Loop:</strong> crossed-off places move to "Done", group memory learns ("Sana liked the mocktails"), and the next plan starts from step 5.</div>
+  </section>
+
+  <section aria-labelledby="tabs">
+    <div class="section-head">
+      <h2 id="tabs">Inside a group: how the 4 tabs connect</h2>
+      <p>In the app the tabs read <strong>Chat · Plan · Bucket list · Calendar</strong>. Here they're arranged by what each tab hands to the next.</p>
+    </div>
+    <div class="diagram">
+      <svg viewBox="0 0 960 360" role="img" aria-label="Diagram: sharing a link posts a card in Chat and files places in the Bucket list; the Bucket list and group memory feed the Plan tab; the final plan goes to the Calendar; 'Did you go?' crosses the place off the Bucket list.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="arrowhead warm" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+
+        <!-- Sources -->
+        <rect class="box src" x="20" y="16" width="440" height="66" rx="8"/>
+        <text class="t-tag" x="36" y="38">SOMEONE SHARES</text>
+        <text class="t-body" x="36" y="60">A reel, post, YouTube or Pinterest link, or a typed list of places</text>
+
+        <rect class="box src" x="500" y="16" width="200" height="66" rx="8"/>
+        <text class="t-tag" x="516" y="38">GROUP MEMORY</text>
+        <text class="t-body" x="516" y="60">Taste swipes + "Aman: veg"</text>
+
+        <!-- Source edges -->
+        <path class="edge warm" d="M120,82 L120,164" marker-end="url(#ahw)"/>
+        <text class="t-edge" x="128" y="128">posts a card</text>
+        <path class="edge warm" d="M360,82 L360,164" marker-end="url(#ahw)"/>
+        <text class="t-edge" x="368" y="120">files the</text>
+        <text class="t-edge" x="368" y="136">place(s)</text>
+        <path class="edge warm" d="M600,82 L600,164" marker-end="url(#ahw)"/>
+        <text class="t-edge" x="608" y="120">fills must-haves</text>
+        <text class="t-edge" x="608" y="136">for people coming</text>
+
+        <!-- Tabs -->
+        <rect class="box tab" x="20" y="166" width="200" height="104" rx="10"/>
+        <text class="t-title" x="36" y="194">Chat</text>
+        <text class="t-body" x="36" y="216">Friends reply and react to</text>
+        <text class="t-body" x="36" y="233">shared cards. No AI here.</text>
+        <text class="t-body" x="36" y="254">"Plan this" opens Plan →</text>
+
+        <rect class="box tab" x="260" y="166" width="200" height="104" rx="10"/>
+        <text class="t-title" x="276" y="194">Bucket list</text>
+        <text class="t-body" x="276" y="216">By category, with a</text>
+        <text class="t-body" x="276" y="233">List / Map switch.</text>
+        <text class="t-body" x="276" y="254">Edit only your own.</text>
+
+        <rect class="box tab" x="500" y="166" width="200" height="104" rx="10"/>
+        <text class="t-title" x="516" y="194">Plan</text>
+        <text class="t-body" x="516" y="216">AI chat everyone can see.</text>
+        <text class="t-body" x="516" y="233">Tap answers → top 3 →</text>
+        <text class="t-body" x="516" y="254">ranked vote. Many at once.</text>
+
+        <rect class="box tab" x="740" y="166" width="200" height="104" rx="10"/>
+        <text class="t-title" x="756" y="194">Calendar</text>
+        <text class="t-body" x="756" y="216">Upcoming plans by date.</text>
+        <text class="t-body" x="756" y="233">Reminders the day before</text>
+        <text class="t-body" x="756" y="254">and 2 hours before.</text>
+
+        <!-- Tab edges -->
+        <path class="edge" d="M460,218 L496,218" marker-end="url(#ah)"/>
+        <text class="t-edge" x="462" y="208" font-size="11">ideas</text>
+        <path class="edge" d="M700,218 L736,218" marker-end="url(#ah)"/>
+        <text class="t-edge" x="704" y="208" font-size="11">plan</text>
+
+        <path class="edge" d="M840,270 L840,320 L360,320 L360,274" marker-end="url(#ah)"/>
+        <text class="t-edge" x="480" y="342">"Did you go?" → Yes → crossed off the bucket list</text>
+      </svg>
+    </div>
+    <p class="note">Orange arrows bring things into the group; teal arrows move them between tabs.</p>
+  </section>
+
+  <section aria-labelledby="personal">
+    <div class="section-head">
+      <h2 id="personal">Personal space, outside groups</h2>
+      <p>Each person also has their own corner of the app.</p>
+    </div>
+    <div class="side">
+      <article class="stage">
+        <h3>Profile &amp; taste</h3>
+        <ul class="screens"><li><i class="dot should"></i><span class="id">F1</span>Taste summary, more swipes, all my saves across groups</li></ul>
+      </article>
+      <article class="stage">
+        <h3>Ask AI</h3>
+        <ul class="screens"><li><i class="dot should"></i><span class="id">F2</span>"What can I do on Sunday under ₹800 near Andheri?"</li></ul>
+      </article>
+      <article class="stage">
+        <h3>Near you</h3>
+        <ul class="screens">
+          <li><i class="dot should"></i><span class="id">B1</span>Home strip when the app is open: "PCO is 600 m away"</li>
+          <li><i class="dot vision"></i><span class="id">—</span>Notification when the app is closed (opt-in)</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <footer>Out for now: booking and payments inside the app, bill split, syncing with Google or phone calendars, community matching. Booking happens through links that open the venue's own page.</footer>
+</div>
