@@ -1553,7 +1553,7 @@ function home(){
     <div class="home-head" data-tour="hero">
       <div><span class="eyebrow">${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}</span>
         <h1>Hey ${esc(me().name)}. <span class="hl">Where to next?</span></h1>
-        <p class="tagline">Stop scrolling reels. <mark>Start going.</mark></p></div>
+        <p class="tagline">Don’t just watch the fun. <mark>Be in it.</mark></p></div>
     </div>
     <div class="bento" data-tour="home">
       ${dygHtml}
@@ -1723,7 +1723,7 @@ function planPanel(g){
       <fieldset><legend>Where should ideas come from?</legend>${chipSet('source', SOURCE, p.source, false)}</fieldset>
       ${(g.memory||[]).length?`<fieldset><legend>Keep in mind <span class="muted tiny">(from the group’s memory)</span></legend>${chipSet('memory', g.memory.map(m=>[m,m]), p.memory, true)}</fieldset>`:''}
       <fieldset><legend>Anything else?</legend><textarea id="pf-extra" class="input" rows="2" placeholder="e.g. it’s Sana’s birthday, somewhere we can sit for hours, not too loud" data-pref="extra">${esc(p.extra)}</textarea></fieldset>
-      <button class="btn yellow xl block go-btn" type="submit">${ic('spark')} ${res?'Start over: find 5 new plans':(g.is_personal?'Find my 5 best plans':'Find our 5 best plans')}</button>
+      <button class="btn yellow xl block go-btn" type="submit">${ic('spark')} ${res?'Find your vibe':(g.is_personal?'Find my 5 best plans':'Find our 5 best plans')}</button>
       <span class="tiny muted center">Tuned to your taste, budget and who’s coming</span>
     </form>
     <form class="askform" data-form="ask">
@@ -1758,10 +1758,10 @@ function resultsView(g, res){
       return optionCard(o, base+i, {picked:!solo&&on, pickHtml: solo ? `<button class="btn sm yellow" data-act="pickSolo" data-k="${k}">${ic('cal')} Lock this in</button>`
         : `<button class="btn sm ${on?'yellow':''}" data-act="optPick" data-k="${k}" aria-pressed="${on}">${on?ic('check')+' In the vote':ic('plus')+' Add to vote'}</button>`}); }).join('')}
     ${pg.options.some(o=>!o.place_id)?'<p class="tiny muted"><b>AI suggestion</b> = a place that isn’t on your saved list yet. Check timings and prices before you go.</p>':''}
-    ${canMore?`<button class="btn xl block more-btn" data-act="moreIdeas" ${res.loading?'disabled':''}>${res.loading?'<span class="spinner sm"></span> Finding 5 more…':ic('spark')+' Not feeling these? Show 5 more'}</button>`:''}
+    ${canMore?`<button class="btn xl block more-btn" data-act="moreIdeas" ${res.loading?'disabled':''}>${res.loading?'<span class="spinner sm"></span> Finding more…':ic('spark')+' Not feeling these? Show more'}</button>`:''}
     ${res.pages.length>=3 && last?'<p class="tiny muted center">That’s all the ideas for this search. Change the mood or area below to start fresh.</p>':''}
     ${solo ? '<p class="tiny muted center">Pick one to put it on your calendar.</p>'
-      : `<button class="btn primary xl block" data-act="sendVote" ${chosen>=2?'':'disabled'}>${ic('vote')} ${chosen>=2?`Send ${chosen} to a group vote`:'Pick at least 2 to vote on'}</button>
+      : `<button class="btn primary xl block" data-act="sendVote" ${chosen>=2?'':'disabled'}>${ic('vote')} ${chosen>=2?'Let’s put it to a vote!':'Pick at least 2 to vote on'}</button>
         <p class="tiny muted center">Pick up to ${MAX_VOTE} from any page. Only the people coming get to vote: rank them, or say “doesn’t work for me”.</p>`}
   </div>`;
 }
