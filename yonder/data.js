@@ -322,8 +322,9 @@ function buildDemoSeed(meId){
   const M = (gid, by, dayOff, h, m, kind, body, data=null) => ({id:uuid(), group_id:gid, user_id:by, kind, body, data, created_at:isoAt(dayOff,h,m)});
   const share = (title, src, keys, extra={}) => ({title, source_kind:src, place_ids:keys.map(k=>ids[k]), ...extra});
   const opt = (key, why) => { const p = places.find(x=>x.id===ids[key]); return {name:p.name, area:p.area, category:p.category, price:p.price, why, place_id:p.id}; };
-  const plCarter = uuid(), plPottery = uuid(), plSaree = uuid(), plKrabi = uuid();
-  const sun = nextDow(0, 2), sat = nextDow(6, 2);
+  const plCarter = uuid(), plPottery = uuid(), plSaree = uuid(), plKrabi = uuid(), plGig = uuid(), plLehenga = uuid(), plPatong = uuid();
+  // Calendar: three plans in the coming days and two a few weeks later, so the month views look lived-in.
+  const sun = nextDow(0, 2), sat = nextDow(6, 2), fri = nextDow(5, 2), laterSun = nextDow(0, 14), laterFri = nextDow(5, 24);
   const plans = [
     {id:plCarter, group_id:gBB, created_by:B.aman.id, title:'Sunset walk at Carter Road', status:'confirmed', place_id:ids.p11,
       options:[opt('p11','Everyone free on Saturday; Aman is back from Pune')], chosen:0,
@@ -334,6 +335,15 @@ function buildDemoSeed(meId){
     {id:plSaree, group_id:gSH, created_by:B.shruti.id, title:'Saree shopping at Commercial Street', status:'confirmed', place_id:ids.s1,
       options:[opt('s1','Start here, then KSIC on MG Road')], chosen:0,
       date:ymd(sat), time:'11:00 am', who:[meId,B.shruti.id], prefs:{}, created_at:isoAt(-3,20,0)},
+    {id:plGig, group_id:gBB, created_by:B.kabir.id, title:'Open mic night at The Habitat', status:'confirmed', place_id:ids.p10,
+      options:[opt('p10','Kabir wants live music; Sana liked it too')], chosen:0,
+      date:ymd(fri), time:'8:00 pm', who:[meId,B.riya.id,B.kabir.id,B.sana.id,B.aman.id], prefs:{}, created_at:isoAt(-1,20,0)},
+    {id:plLehenga, group_id:gSH, created_by:B.shruti.id, title:'Lehenga shopping in JP Nagar', status:'confirmed', place_id:ids.s10,
+      options:[opt('s10','Soch has lehengas and suits; Manyavar is next door for the groom’s side')], chosen:0,
+      date:ymd(laterSun), time:'11:00 am', who:[meId,B.shruti.id], prefs:{}, created_at:isoAt(-2,19,0)},
+    {id:plPatong, group_id:gTH, created_by:B.kabir.id, title:'First night in Patong: Bangla Road', status:'confirmed', place_id:ids.t4,
+      options:[opt('t4','Landing day: walk Bangla Road, then Illuzion if everyone has energy')], chosen:0,
+      date:ymd(laterFri), time:'8:00 pm', who:[meId,B.riya.id,B.kabir.id,B.sana.id,B.dev.id], prefs:{}, created_at:isoAt(-2,21,0)},
     {id:plKrabi, group_id:gTH, created_by:B.sana.id, title:'Krabi snorkelling day', status:'voting', place_id:null,
       options:[opt('t12','Riya and Sana both saved it; about ฿1,200 each'), opt('t13','Quieter water, a bit pricier at about ฿1,800'), opt('t10','Beach day instead: Railay is a short boat ride')], chosen:null,
       date:ymd(daysFrom(30)), time:null, who:[meId,B.riya.id,B.kabir.id,B.sana.id,B.dev.id], prefs:{}, created_at:isoAt(-1,18,0)},
@@ -354,6 +364,7 @@ function buildDemoSeed(meId){
     M(gSH,B.shruti.id,-4,15,0,'share','',share('Silk saree shopping guide','ig',['s5','s6'])),
     M(gSH,B.shruti.id,-3,20,0,'plan','Plan confirmed',{plan_id:plSaree}),
     M(gSH,B.shruti.id,-3,20,5,'text','Saturday works. KSIC first, they close early'),
+    M(gSH,B.shruti.id,-2,19,0,'plan','Plan confirmed',{plan_id:plLehenga}),
     /* Thailand */
     M(gTH,B.riya.id,-7,21,0,'text','THAILAND IS HAPPENING. phuket first, then krabi'),
     M(gTH,B.kabir.id,-7,22,5,'share','',share('Phuket beach clubs and nightlife','ig',['t1','t2','t3'])),
@@ -364,8 +375,10 @@ function buildDemoSeed(meId){
     M(gTH,B.riya.id,-2,10,10,'share','',share('Snorkelling in Krabi','ig',['t12','t13'])),
     M(gTH,B.sana.id,-1,18,0,'plan','Vote started',{plan_id:plKrabi}),
     M(gTH,B.kabir.id,-1,18,20,'text','vote done soon, snorkelling is a must'),
+    M(gTH,B.kabir.id,-2,21,0,'plan','Plan confirmed',{plan_id:plPatong}),
     /* Bandra Bunch */
     M(gBB,B.aman.id,-9,11,0,'plan','Plan confirmed',{plan_id:plCarter}),
+    M(gBB,B.kabir.id,-1,20,0,'plan','Plan confirmed',{plan_id:plGig}),
     M(gBB,B.sana.id,-4,21,12,'text','guys we NEED to do something new this weekend. not the same café again'),
     M(gBB,B.kabir.id,-4,21,15,'text','agreed. someone find a place'),
     M(gBB,B.riya.id,-3,23,4,'share','',share('Mumbai’s hidden speakeasies','ig',['p1','p2','p3','p4'],{url:'https://www.instagram.com/p/DebylfgExy0/'})),

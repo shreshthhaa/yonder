@@ -466,7 +466,7 @@ function panel(g){
 /* ---------- PLAN WITH AI ---------- */
 const WHEN = [['sat','This Saturday'],['sun','This Sunday'],['next','Next weekend'],['weeknight','A weeknight'],['date','Pick a date']];
 const MOODS = [['cafe','Cafés'],['food','Food'],['bars','Drinks'],['sunset','Outdoors & sunsets'],['shows','Comedy & gigs'],['workshop','Workshops'],['shop','Shopping'],['chill','Something chill'],['new','Something new'],['celebrate','A celebration']];
-const SOURCE = [['list','Only our bucket list'],['both','Mix of both'],['new','Only new places']];
+const SOURCE = [['list','Only our bucket list'],['new','Only new places'],['both','Mix of both']];
 function whenToDate(p){
   const d = p.when==='sat' ? nextDow(6) : p.when==='sun' ? nextDow(0) : p.when==='next' ? (()=>{ const s=nextDow(6); s.setDate(s.getDate()+7); return s; })() : p.when==='weeknight' ? nextDow(3) : (p.date ? new Date(p.date+'T12:00') : nextDow(6));
   if(p.when==='sat' && new Date().getDay()===6) return new Date();
