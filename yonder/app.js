@@ -156,6 +156,38 @@ function curGroup(){
 function go(view){ S.view=view; store.set('view',view); render(); window.scrollTo(0,0); }
 function openGroup(gid, panel){ S.gid=gid; store.set('gid',gid); if(panel){ S.panel=panel; store.set('panel',panel); } S.stick=true; S.sel=null; S.cat='all'; S.view='groups'; store.set('view','groups'); render(); }
 
+/* ================= ADDRESSES: each tab has its own URL, so Back and Forward work ================= */
+// #/home   #/groups/<group id>/<chat|plan|bucket|calendar>   #/swipe   #/profile
+let routeSynced = false;
+function routeFromState(){
+  if(S.view==='groups'){ const g = curGroup(); return `/groups/${g?g.id:'-'}/${isPhone() && S.mobilePane==='chat' ? 'chat' : S.panel}`; }
+  return '/'+S.view;
+}
+function syncUrl(){
+  if(S.auth!=='ready') return;
+  const want = '#'+routeFromState();
+  if(location.hash !== want){
+    // The first address, and the tour's page changes, replace the current entry; everything else adds one, so Back goes to the previous tab.
+    try{ history[(!routeSynced || tour.on) ? 'replaceState' : 'pushState'](null, '', location.pathname+want); }catch(e){}
+  }
+  routeSynced = true;
+}
+function applyRoute(){ // reads the address into the app's state; false if the address doesn't name a page
+  const parts = location.hash.replace(/^#\/?/,'').split('/');
+  if(!['home','groups','swipe','profile'].includes(parts[0])) return false;
+  S.view = parts[0]; store.set('view', S.view);
+  if(S.view==='groups'){
+    const g = myGroups().find(x=>x.id===parts[1]); if(g){ S.gid = g.id; store.set('gid', g.id); }
+    if(parts[2]==='chat') S.mobilePane = 'chat';
+    else if(['plan','bucket','calendar'].includes(parts[2])){ S.panel = parts[2]; store.set('panel', S.panel); S.mobilePane = 'panel'; }
+  }
+  return true;
+}
+window.addEventListener('popstate', ()=>{
+  if(S.auth!=='ready' || tour.on) return;
+  if(applyRoute()){ if(S.modal && !S.modal.noClose) S.modal = null; render(); window.scrollTo(0,0); }
+});
+
 /* ================= render loop ================= */
 let rq = 0;
 function schedule(){ if(rq) return; rq = requestAnimationFrame(()=>{ rq=0; render(); }); }
@@ -181,6 +213,7 @@ function render(){
   if(S.sel){ const row = document.querySelector(`[data-row="${S.sel}"]`); if(row && S.scrollToSel){ row.scrollIntoView({block:'nearest'}); S.scrollToSel=false; } }
   if(S.view==='swipe') mountSwipe();
   mountMaps();
+  syncUrl();
   if(tour.on) tour.place();
 }
 api.onChange(()=>{ if(S.auth==='ready') schedule(); });
@@ -201,7 +234,7 @@ function authView(){
       </ol>
     </section>
     <section class="auth-card card">
-      ${S.joinCode?`<div class="invite-banner">${ic('users')}<span>You’ve been invited to a group (code <b>${esc(S.joinCode)}</b>). Sign in and we’ll add you.</span></div>`:''}
+      ${S.joinCode?`<div class="invite-banner">${ic('users')}<span>You’ve been invited to a group (code <b>${esc(S.joinCode)}</b>). Sign in, then you can choose whether to join.</span></div>`:''}
       ${cloud?`<div class="seg" role="tablist">${[['guest','Try it now'],['login','Log in'],['signup','Sign up']].map(([k,l])=>`<button role="tab" aria-selected="${tab===k}" data-act="authTab" data-v="${k}">${l}</button>`).join('')}</div>`:''}
       ${tab==='guest' ? `
         <h2>Jump in. No sign-up.</h2>
@@ -1074,6 +1107,7 @@ function modalView(){
   else if(m.type==='editPlan'){ const pl=D.plans.find(p=>p.id===m.id);
     inner = `<h2>Change date</h2><form class="stack" data-form="editPlan"><label class="lbl" for="ep-date">Date</label><input id="ep-date" type="date" class="input" value="${esc(pl.date||'')}" min="${todayYmd()}" required><label class="lbl" for="ep-time">Time</label><input id="ep-time" class="input" value="${esc(pl.time||'')}" placeholder="8:00 pm"><button class="btn primary" type="submit">Save</button></form>`; }
   else if(m.type==='planPlace') inner = planPlaceModal(m);
+  else if(m.type==='joinConfirm') inner = joinConfirmModal(m);
   else if(m.type==='onboard') inner = onboardModal(m);
   else if(m.type==='welcome') inner = `<div class="welcome"><div class="brand big">${LOGO}<span>yonder</span></div><h2>Hi ${esc(me().name)}! Save. Plan. Go.</h2>
       <ol class="steps3 compact"><li class="st st-pink"><b>1 · Save</b><span>Drop in reels. We find the places.</span></li><li class="st st-yellow"><b>2 · Plan</b><span>AI picks 3 that fit your group.</span></li><li class="st st-blue"><b>3 · Go</b><span>Vote, lock a date, rate it.</span></li></ol>
@@ -1466,6 +1500,8 @@ document.addEventListener('click', async e=>{
     case 'cat': S.cat=v; render(); break;
     case 'interest': await api.toggleInterest(placeById(id)); break;
     case 'removePlace': { const p=placeById(id); if(p && confirmInline(el, 'Remove '+p.name+'?')){ await api.removePlace(id); S.sel=null; toast('Removed '+p.name); } break; }
+    case 'joinYes': { const m=S.modal; try{ const jg = await api.joinGroup(m.code); S.modal=null; S.gid=jg.id; S.view='groups'; toast(m.info && m.info.is_member ? 'Opened '+jg.name : 'You joined '+jg.name); }catch(err){ m.err = err.message; render(); break; } continueAfterLogin(); break; }
+    case 'joinNo': S.modal=null; toast('No problem. You can still join later with the same link or code.'); continueAfterLogin(); break;
     case 'planThis': { const p0=placeById(id); if(!p0) break; const g0=groupById(p0.group_id);
       S.modal = {type:'planPlace', id, who: g0.is_personal ? [me().id] : membersOf(g0.id), when:'sat', date:'', time: DEFAULT_TIME[p0.category] || '7:00 pm'}; render(); break; }
     case 'ppWho': { const m=S.modal, i=m.who.indexOf(v); if(i>=0) m.who.splice(i,1); else m.who.push(v); render(); break; }
@@ -1601,12 +1637,34 @@ async function saveConfirm(){
   S.view='groups'; render();
 }
 async function afterLogin(){
-  S.authErr='';
-  if(S.joinCode){ try{ const jg = await api.joinGroup(S.joinCode); S.gid=jg.id; S.view='groups'; toast('You joined '+jg.name); }catch(e){ toast(e.message); } S.joinCode=null; try{ sessionStorage.removeItem('yonder-join'); }catch(e){} }
+  S.authErr=''; applyRoute();
+  // An invite link never adds anyone by itself: show who is inviting and ask first.
+  const code = S.joinCode; S.joinCode = null; try{ sessionStorage.removeItem('yonder-join'); }catch(e){}
+  if(code){
+    const m = S.modal = {type:'joinConfirm', code, info:undefined, loading:true, noClose:true}; render();
+    const info = await api.peekGroup(code);
+    if(S.modal===m){ m.info = info; m.loading = false; render(); }
+    return;
+  }
+  continueAfterLogin();
+}
+function continueAfterLogin(){
   if(!me().onboarded){ resetGeo(); S.modal = {type:'onboard', noClose:true}; }
   else if(!me().tour_done) S.modal = {type:'welcome', noClose:true};
   if(sharedIn){ const g = curGroup(); S.modal = {type:'save', step:'input', raw:[sharedIn.text, sharedIn.url].filter(Boolean).join(' '), groups:[g.id], picks:{}, extra:[]}; render(); runExtract(S.modal); return; }
   render();
+}
+function joinConfirmModal(m){
+  const i = m.info;
+  if(m.loading) return `<h2>Checking the invite…</h2><div class="thinking-card"><span class="spinner"></span><div><b>One moment</b></div></div>`;
+  if(i===null) return `<h2>That invite doesn’t match a group</h2><p class="muted">The link may be old, or the group may have been removed. Ask your friend to send it again.</p>
+    <button class="btn primary xl" data-act="joinNo">Continue</button>`;
+  const name = i ? esc(i.name) : 'this group';
+  if(i && i.is_member) return `<h2>You’re already in ${name}</h2><div class="row gap"><button class="btn primary xl" data-act="joinYes">Open ${name}</button><button class="btn xl ghost" data-act="joinNo">Not now</button></div>`;
+  return `<h2>Join ${name}?</h2>
+    <p class="muted">${i ? `${i.members} ${i.members===1?'person is':'people are'} in this group. ` : `You’ve been invited with the code <b>${esc(m.code)}</b>. `}If you join, everyone in the group can see your name and the places you save to it.</p>
+    ${m.err?`<p class="err">${esc(m.err)}</p>`:''}
+    <div class="row gap wrap"><button class="btn primary xl" data-act="joinYes">${ic('users')} Join ${name}</button><button class="btn xl ghost" data-act="joinNo">Not now</button></div>`;
 }
 
 /* ================= WALKTHROUGH ================= */

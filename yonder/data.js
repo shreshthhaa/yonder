@@ -453,6 +453,15 @@ const api = {
     const g = check(await sb.rpc('join_group', {p_code:code}));
     await cloudLoadAll(); emit('reload'); return g;
   },
+  // Looks at an invite code without joining. Returns the group's details, null if there is no such group, or undefined if it can't be checked.
+  async peekGroup(code){
+    code = String(code||'').trim().toUpperCase();
+    if(MODE==='local'){
+      const g = D.groups.find(x=>x.invite_code===code && !x.is_personal); if(!g) return null;
+      return {name:g.name, color:g.color, members:D.members.filter(m=>m.group_id===g.id).length, is_member:D.members.some(m=>m.group_id===g.id && m.user_id===D.me.id)};
+    }
+    try{ const {data, error} = await sb.rpc('peek_group', {p_code:code}); return error ? undefined : (data || null); }catch(e){ return undefined; }
+  },
   async leaveGroup(gid){
     if(MODE==='local'){ removeLocal('members', r=>r.group_id===gid && r.user_id===D.me.id); local.save(); emit('groups'); return; }
     check(await sb.from('group_members').delete().eq('group_id',gid).eq('user_id',D.me.id));
