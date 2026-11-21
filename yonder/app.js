@@ -142,8 +142,8 @@ const votingIn = gid => plansOf(gid).filter(p=>p.status==='voting');
 const S = {
   booted:false, auth:'signedOut', view:'home', gid: store.get('gid',null), panel: store.get('panel','plan'),
   cat:'all', sel:null, calMonth:null, calDay:null, modal:null, prefs:{}, results:{}, busy:null, drafts:{}, swipeIdx:0,
-  stick:true, authTab:'guest', authErr:'', joinCode:null, hintClosed: store.get('hints',{}), mobilePane:'chat',
-  geo:{q:'', results:[], busy:false, err:'', pick:null},
+  chatMin: store.get('chatMin', false), stick:true, authTab:'guest', authErr:'', joinCode:null, hintClosed: store.get('hints',{}), mobilePane:'chat',
+  geo:{q:'', items:[], busy:false, err:'', pick:null, open:false, searched:false}, areaAc:{q:'', items:[], busy:false, err:'', open:false}, swipeEdit:false,
 };
 const params = new URLSearchParams(location.search);
 if(params.get('join')){ S.joinCode = params.get('join').toUpperCase(); try{ sessionStorage.setItem('yonder-join', S.joinCode); }catch(e){} }
@@ -203,6 +203,7 @@ function render(){
   if(!S.booted){ app.innerHTML = `<div class="boot">${LOGO}<b>yonder</b></div>`; return; }
   if(S.auth!=='ready'){ app.innerHTML = authView(); }
   else {
+    if(S.view!=='swipe') S.swipeEdit = false;
     const views = {home, groups:groupsView, swipe:swipeView, profile:profileView};
     app.innerHTML = topBar() + (views[S.view]||home)() + mobileNav();
   }
@@ -275,7 +276,7 @@ function topBar(){
   </header>`;
 }
 function mobileNav(){
-  const nav = [['home','Home','home'],['groups','Groups','chat'],['swipe','Taste','cards']];
+  const nav = [['home','Home','home'],['groups','Groups','chat'],['swipe','Taste swipe','cards']];
   return `<nav class="mnav" aria-label="Main">${nav.map(([v,l,i])=>`<button data-go="${v}" ${S.view===v?'aria-current="page"':''}>${ic(i)}<span>${l}</span></button>`).join('')}</nav>`;
 }
 
@@ -328,7 +329,7 @@ function home(){
       <span class="grow"><b>${esc(p.name)}</b><span class="muted">${esc(nm(p.added_by))} → ${esc(groupById(p.group_id).name)} · ${dayLabel(p.created_at)}</span></span>${ic('right')}</button>`).join('');
   const likes = (me().taste&&me().taste.like)||[];
   const have = new Set(D.places.filter(p=>gids.has(p.group_id)).map(p=>p.name.toLowerCase()));
-  const answered = likes.length + ((me().taste&&me().taste.nope)||[]).length;
+  const answered = likes.length + ((me().taste&&me().taste.nope)||[]).length, tasteDone = answered >= TASTE_CARDS.length;
   const likedCats = [...new Set(likes.map(k=>TASTE_BY_ID[k]&&TASTE_BY_ID[k].cat).filter(Boolean))];
   // Around Mumbai: built-in ideas. Anywhere else: the AI suggests places in your own city (one call, remembered).
   const outside = !nearMumbai(ll);
@@ -346,7 +347,8 @@ function home(){
   return `<main class="home">
     <div class="home-head" data-tour="hero">
       <div><span class="eyebrow">${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}</span>
-        <h1>Hey ${esc(me().name)}. <span class="hl">Where to next?</span></h1></div>
+        <h1>Hey ${esc(me().name)}. <span class="hl">Where to next?</span></h1>
+        <p class="tagline">Stop scrolling reels. <mark>Start going.</mark></p></div>
     </div>
     <div class="bento" data-tour="home">
       ${dygHtml}
@@ -360,8 +362,8 @@ function home(){
       <section class="tile t-fresh"><span class="eyebrow">Fresh in your groups</span><h2>Just saved</h2>${fresh || '<p class="muted">Nothing saved yet. Share a reel to a group to start.</p>'}</section>
       <div class="col-r">
         <section class="tile t-new"><span class="eyebrow">New for you · from your taste swipe</span><h2>Ideas you’d like</h2>${ideaHtml}</section>
-        <section class="tile t-swipe"><div class="grow"><span class="eyebrow">Teach it your taste</span><h2>Taste swipe</h2><p class="muted">${answered?`${answered} of ${TASTE_CARDS.length} answered. Plans get more “you”.`:'Swipe what you love. Plans get more “you”.'}</p></div>
-          <button class="btn pink" data-go="swipe">${ic('cards')} ${answered?'Keep swiping':'Start swiping'}</button></section>
+        <section class="tile t-swipe"><div class="grow"><span class="eyebrow">Teach it your taste</span><h2>Taste swipe</h2><p class="muted">${tasteDone?`${TASTE_CARDS.length} of ${TASTE_CARDS.length} cards done. Plans already match your taste.`:answered?`${answered} of ${TASTE_CARDS.length} answered. Plans get more “you”.`:'Swipe what you love. Plans get more “you”.'}</p></div>
+          ${tasteDone ? `<button class="btn" data-act="tasteEdit">${ic('edit')} Edit</button>` : `<button class="btn pink" data-go="swipe">${ic('cards')} ${answered?'Keep swiping':'Start swiping'}</button>`}</section>
       </div>
     </div></main>`;
 }
@@ -371,7 +373,7 @@ function groupsView(){
   const g = curGroup();
   if(!g) return `<main class="empty-page"><h1>No groups yet</h1><button class="btn primary" data-act="modal" data-v="newGroup">${ic('plus')} New group</button></main>`;
   const mp = S.mobilePane==='chat' ? 'chat' : S.panel;
-  return `<main class="groups mp-${S.mobilePane}">
+  return `<main class="groups mp-${S.mobilePane}${S.chatMin?' chat-min':''}">
     <div class="mswitch">
       <div class="mrow">
         <select class="input sm" data-act-change="mgroup" aria-label="Group">${myGroups().map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
@@ -432,6 +434,7 @@ function chat(g){
     <button class="x" data-act="closeHint" data-id="${hintKey}" aria-label="Hide tip">${ic('x')}</button></div>`;
   const others = membersOf(g.id);
   return `<section class="chat" data-tour="chat" aria-label="${esc(g.name)} chat">
+    <button class="chat-hide" data-act="chatMin" aria-label="Hide the chat" title="Hide the chat so the plan, bucket list and calendar get more room">${ic('left')}<b>Hide chat</b><small>more room for plans</small></button>
     <div class="chat-head">
       <span class="gicon lg" style="background:${g.color};color:${inkOn(g.color)}">${esc(first(g.name))}</span>
       <div class="grow"><h2>${esc(g.name)}</h2><span class="muted tiny">${g.is_personal?'Only you can see this':others.map(nm).join(', ')}</span></div>
@@ -458,6 +461,7 @@ function panel(g){
   ];
   const body = S.panel==='bucket' ? bucketPanel(g) : S.panel==='calendar' ? calendarPanel(g) : planPanel(g);
   return `<section class="panel p-${S.panel}" aria-label="Planning panel">
+    ${S.chatMin ? `<button class="chat-restore" data-act="chatMin" aria-label="Show the chat">${ic('chat')}<span><b>Show chat</b><small>Messages and shared reels</small></span>${ic('right')}</button>` : ''}
     <div class="ptabs" role="tablist">${tabs.map(([k,l,sub,i,t])=>`<button role="tab" class="ptab pt-${k}" data-act="panel" data-v="${k}" data-tour="${t}" aria-selected="${S.panel===k}">
       <span class="pt-ic">${ic(i)}</span><span class="pt-txt"><b>${l}</b><small>${esc(sub)}</small></span></button>`).join('')}</div>
     <div class="pbody">${body}</div>
@@ -465,54 +469,61 @@ function panel(g){
 }
 
 /* ---------- PLAN WITH AI ---------- */
-const WHEN = [['sat','This Saturday'],['sun','This Sunday'],['next','Next weekend'],['weeknight','A weeknight'],['date','Pick a date']];
 const MOODS = [['cafe','Cafés'],['food','Food'],['bars','Drinks'],['sunset','Outdoors & sunsets'],['shows','Comedy & gigs'],['workshop','Workshops'],['shop','Shopping'],['chill','Something chill'],['new','Something new'],['celebrate','A celebration']];
-const SOURCE = [['list','Only our bucket list'],['new','Only new places'],['both','Mix of both']];
-function whenToDate(p){
-  const d = p.when==='sat' ? nextDow(6) : p.when==='sun' ? nextDow(0) : p.when==='next' ? (()=>{ const s=nextDow(6); s.setDate(s.getDate()+7); return s; })() : p.when==='weeknight' ? nextDow(3) : (p.date ? new Date(p.date+'T12:00') : nextDow(6));
-  if(p.when==='sat' && new Date().getDay()===6) return new Date();
-  if(p.when==='sun' && new Date().getDay()===0) return new Date();
-  return d;
-}
+const SOURCE = [['list','Only our saved places'],['new','Only AI suggestions'],['both','Saved places + AI suggestions']];
+const whenToDate = p => p.date ? new Date(p.date+'T12:00') : nextDow(6); // the day the group picked (the coming Saturday until they change it)
 function prefsFor(g){
   if(!S.prefs[g.id]){
     const memory = (g.memory||[]).slice();
-    S.prefs[g.id] = {who: membersOf(g.id), when:'sat', date:'', moods:[], budget:'', areas:['near'], source:'both', memory, extra:''};
+    S.prefs[g.id] = {who: membersOf(g.id), date: ymd(nextDow(6)), moods:[], budget:'', areas:['near'], others:[], source:'both', memory, extra:''};
   }
   return S.prefs[g.id];
 }
 function chipSet(field, opts, sel, multi){ return `<div class="chips">${opts.map(([k,l])=>{ const on = multi ? sel.includes(k) : sel===k;
   return `<button type="button" class="chip ${on?'on':''}" aria-pressed="${on}" data-act="pref" data-f="${field}" data-v="${esc(k)}" data-multi="${multi?1:0}">${on?ic('check'):''}${esc(l)}</button>`; }).join('')}</div>`; }
+const PLAN_LINES = ['Curating plans just for your group…','Matching everyone’s tastes…','Checking budgets and who’s coming…','Hunting for hidden gems…','Picking your 5 best plans…'];
+const ASK_LINES = ['Looking for ideas…','Checking your saved places…','Finding the best fits…'];
+function planningScreen(kind){
+  const lines = kind==='ask' ? ASK_LINES : PLAN_LINES;
+  return `<div class="planning-screen" role="status" aria-live="polite"><div class="ps-orb">${ic('spark')}</div>
+    <h3 id="ps-line">${lines[0]}</h3>
+    <p class="muted">${kind==='ask'?'Looking for ideas for you':'Your 5 plans are being curated'} · <span id="secs">0</span>s</p>
+    <div class="ps-bar"><i></i></div><button class="btn sm ghost" data-act="stopAI">Cancel</button></div>`;
+}
 function planPanel(g){
   const p = prefsFor(g);
   const members = membersOf(g.id);
   const areaCount = {}; placesOf(g.id).forEach(x=>{ const a=areaLabel(x.area); if(a) areaCount[a]=(areaCount[a]||0)+1; });
-  const areas = [['near','Near most of us'], ...Object.keys(areaCount).sort((a,b)=>areaCount[b]-areaCount[a]).slice(0,8).map(a=>[a,a])];
+  const areas = [['near','Near most of us'], ['anywhere','Anywhere in the city'], ...Object.keys(areaCount).sort((a,b)=>areaCount[b]-areaCount[a]).slice(0,8).map(a=>[a,a]), ['other','Others…']];
   const res = S.results[g.id];
   const busy = S.busy && S.busy.gid===g.id;
   const voting = votingIn(g.id);
   const dyg = pendingDidYouGo().filter(pl=>pl.group_id===g.id);
   const aiAsks = msgsOf(g.id).filter(m=>m.kind==='ai').slice(-3).reverse();
+  const othersUi = p.areas.includes('other') ? `<div class="others">${(p.others||[]).map((o,i)=>`<span class="chip on other-chip">${esc(o.label)}<button type="button" class="x-mini" data-act="otherDel" data-i="${i}" aria-label="Remove ${esc(o.label)}">${ic('x')}</button></span>`).join('')}
+      ${acInput('area','Type an area or place, e.g. Whitefield')}<span class="tiny muted">Pick one from the list. Add as many as you like.</span></div>` : '';
+  // While plans are being found, the form steps aside and a big, lively screen takes its place. The form comes back under the results.
+  if(busy) return planningScreen(S.busy.kind);
   return `
     ${dyg.map(pl=>{ const pp=placeById(pl.place_id); return `<div class="dyg-strip"><b>Did you go to ${esc(pp?pp.name:pl.title)} on ${fmtDate(pl.date)}?</b><div class="row gap"><button class="btn sm yellow" data-act="didGo" data-id="${pl.id}" data-v="yes">Yes</button><button class="btn sm" data-act="didGo" data-id="${pl.id}" data-v="no">No</button></div></div>`; }).join('')}
     ${voting.map(pl=>planCard(pl,false)).join('')}
-    ${res && !busy ? resultsView(g, res) : ''}
-    ${busy ? `<div class="thinking-card"><span class="spinner"></span><div><b>${S.busy.kind==='ask'?'Looking for ideas…':'Finding 3 plans that fit everyone…'}</b><span class="muted tiny">Reading your bucket list, tastes and group memory · <span id="secs">0</span>s</span></div><button class="btn sm" data-act="stopAI">Stop</button></div>`:''}
+    ${res ? resultsView(g, res) : ''}
     <form class="planform" data-form="plan">
       <div class="pf-head"><h3>${ic('spark')} Plan something${g.is_personal?' for yourself':' with '+esc(g.name)}</h3><span class="muted tiny">Pick as many as you like, then hit the button.</span></div>
       ${g.is_personal?'':`<fieldset><legend>Who’s coming?</legend><div class="chips">${members.map(id=>{ const on=p.who.includes(id); return `<button type="button" class="chip person ${on?'on':''}" aria-pressed="${on}" data-act="pref" data-f="who" data-v="${id}" data-multi="1">${av(id,'xs')}${esc(nm(id))}</button>`; }).join('')}</div></fieldset>`}
-      <fieldset><legend>When?</legend>${chipSet('when', WHEN, p.when, false)}${p.when==='date'?`<input type="date" class="input sm" id="pf-date" value="${esc(p.date)}" min="${todayYmd()}" data-pref="date">`:''}</fieldset>
+      <fieldset><legend>Pick a date</legend><input type="date" class="input sm" id="pf-date" value="${esc(p.date)}" min="${todayYmd()}" data-pref="date" required></fieldset>
       <fieldset><legend>In the mood for</legend>${chipSet('moods', MOODS, p.moods, true)}</fieldset>
       <fieldset><legend>Budget per person</legend>${chipSet('budget', budgetOpts(), p.budget, false)}</fieldset>
-      <fieldset><legend>Where?</legend>${chipSet('areas', areas, p.areas, true)}</fieldset>
-      <fieldset><legend>Ideas from</legend>${chipSet('source', SOURCE, p.source, false)}</fieldset>
+      <fieldset><legend>Where?</legend>${chipSet('areas', areas, p.areas, true)}${othersUi}</fieldset>
+      <fieldset><legend>Where should ideas come from?</legend>${chipSet('source', SOURCE, p.source, false)}</fieldset>
       ${(g.memory||[]).length?`<fieldset><legend>Keep in mind <span class="muted tiny">(from the group’s memory)</span></legend>${chipSet('memory', g.memory.map(m=>[m,m]), p.memory, true)}</fieldset>`:''}
       <fieldset><legend>Anything else?</legend><textarea id="pf-extra" class="input" rows="2" placeholder="e.g. it’s Sana’s birthday, somewhere we can sit for hours, not too loud" data-pref="extra">${esc(p.extra)}</textarea></fieldset>
-      <button class="btn yellow xl block" type="submit" ${busy?'disabled':''}>${ic('spark')} ${res?'Start over: find 3 new plans':'Find 3 plans'}</button>
+      <button class="btn yellow xl block go-btn" type="submit">${ic('spark')} ${res?'Start over: find 5 new plans':(g.is_personal?'Find my 5 best plans':'Find our 5 best plans')}</button>
+      <span class="tiny muted center">Tuned to your taste, budget and who’s coming</span>
     </form>
     <form class="askform" data-form="ask">
       <label class="lbl" for="ask-input">${ic('chat')} Or just ask <span class="muted tiny">${g.is_personal?'':'· everyone in the group sees the answer'}</span></label>
-      <div class="row gap"><input id="ask-input" class="input" placeholder="e.g. cheap fun things in Bandra this Sunday" value="${esc(S.drafts['ask-'+g.id]||'')}" data-draft="ask-${g.id}"><button class="btn primary" type="submit" ${busy?'disabled':''}>Ask</button></div>
+      <div class="row gap"><input id="ask-input" class="input" placeholder="e.g. cheap fun things in Bandra this Sunday" value="${esc(S.drafts['ask-'+g.id]||'')}" data-draft="ask-${g.id}"><button class="btn primary" type="submit">Ask</button></div>
     </form>
     ${aiAsks.map(m=>askAnswer(g,m)).join('')}`;
 }
@@ -522,7 +533,7 @@ function optionCard(o, i, opts={}){
   const onList = o.place_id && placeById(o.place_id);
   return `<div class="opt ${opts.picked?'picked':''}" style="--c:${c.color};--ci:${c.ink}">
     <div class="opt-top"><span class="opt-n">${i+1}</span>${placeTile(o.category)}<div class="grow"><b>${esc(o.name)}</b><span class="muted tiny">${esc(o.area||'')}${o.price?' · '+esc(o.price):''}</span></div>
-      <span class="badge ${onList?'b-list':'b-new'}">${onList?'On your list':'New idea'}</span></div>
+      <span class="badge ${onList?'b-list':'b-new'}">${onList?`${ic('pin')} From your saved places`:`${ic('spark')} AI suggestion`}</span></div>
     <p class="why">${esc(o.why||'')}</p>
     ${opts.actionsHtml || `<div class="row gap wrap"><a class="btn sm" href="${mapsUrl(o)}" target="_blank" rel="noopener">${ic('maps')} Google Maps</a>${opts.pickHtml||''}</div>`}
   </div>`;
@@ -541,9 +552,9 @@ function resultsView(g, res){
     ${pg.options.map((o,i)=>{ const k=res.page+'-'+i, on=res.sel.includes(k);
       return optionCard(o, base+i, {picked:!solo&&on, pickHtml: solo ? `<button class="btn sm yellow" data-act="pickSolo" data-k="${k}">${ic('cal')} Lock this in</button>`
         : `<button class="btn sm ${on?'yellow':''}" data-act="optPick" data-k="${k}" aria-pressed="${on}">${on?ic('check')+' In the vote':ic('plus')+' Add to vote'}</button>`}); }).join('')}
-    ${pg.options.some(o=>!o.place_id)?'<p class="tiny muted">New ideas come from the AI’s general knowledge. Check timings and prices before you go.</p>':''}
-    ${canMore?`<button class="btn xl block more-btn" data-act="moreIdeas" ${res.loading?'disabled':''}>${res.loading?'<span class="spinner sm"></span> Finding 3 more…':ic('spark')+' Not feeling these? Show 3 more'}</button>`:''}
-    ${res.pages.length>=3 && last?'<p class="tiny muted center">That’s 9 ideas. Change the mood or area above to start fresh.</p>':''}
+    ${pg.options.some(o=>!o.place_id)?'<p class="tiny muted"><b>AI suggestion</b> = a place that isn’t on your saved list yet. Check timings and prices before you go.</p>':''}
+    ${canMore?`<button class="btn xl block more-btn" data-act="moreIdeas" ${res.loading?'disabled':''}>${res.loading?'<span class="spinner sm"></span> Finding 5 more…':ic('spark')+' Not feeling these? Show 5 more'}</button>`:''}
+    ${res.pages.length>=3 && last?'<p class="tiny muted center">That’s all the ideas for this search. Change the mood or area below to start fresh.</p>':''}
     ${solo ? '<p class="tiny muted center">Pick one to put it on your calendar.</p>'
       : `<button class="btn primary xl block" data-act="sendVote" ${chosen>=2?'':'disabled'}>${ic('vote')} ${chosen>=2?`Send ${chosen} to a group vote`:'Pick at least 2 to vote on'}</button>
         <p class="tiny muted center">Pick up to ${MAX_VOTE} from any page. Only the people coming get to vote: rank them, or say “doesn’t work for me”.</p>`}
@@ -569,21 +580,28 @@ function planCard(pl, inChat){
   const g = groupById(pl.group_id); if(!g) return '';
   if(pl.status==='voting'){
     const t = tally(pl), who = pl.who||[], voted = new Set(t.votes.map(v=>v.user_id));
-    const mineVoted = voted.has(me().id), canVote = who.includes(me().id);
+    const mineVoted = voted.has(me().id), canVote = who.includes(me().id), anyVotes = t.votes.length>0;
+    const best = anyVotes ? Math.max(...t.score) : 0;
     return `<div class="plancard voting"><div class="pc-head"><span class="pc-tag">${ic('vote')} Vote</span><b>${esc(pl.title)}</b><span class="muted tiny">${pl.date?fmtDate(pl.date):''}</span></div>
-      <ol class="pc-opts">${pl.options.map((o,i)=>`<li><span class="dotc" style="background:${(CATS[o.category]||CATS.shows).color}"></span><span class="grow">${esc(o.name)} <span class="muted tiny">${esc(o.area||'')}</span></span>${mineVoted?`<span class="tiny">${t.score[i]} pts${t.vetoes[i]?` · ${t.vetoes[i]} can’t`:''}</span>`:''}</li>`).join('')}</ol>
-      <div class="pc-voters">${who.map(id=>`<span class="voter ${voted.has(id)?'done':''}" title="${esc(nm(id))}${voted.has(id)?' voted':' hasn’t voted'}">${av(id,'xs')}${voted.has(id)?ic('check'):''}</span>`).join('')}<span class="muted tiny">${voted.size}/${who.length} voted</span></div>
+      <ol class="pc-opts">${pl.options.map((o,i)=>`<li class="${anyVotes && t.score[i]===best && best>0 ? 'lead' : ''}"><span class="dotc" style="background:${(CATS[o.category]||CATS.shows).color}"></span><span class="grow">${esc(o.name)} <span class="muted tiny">${esc(o.area||'')}</span></span>${anyVotes?`<span class="pts">${t.score[i]} pt${t.score[i]===1?'':'s'}${t.vetoes[i]?` · ${t.vetoes[i]} can’t`:''}</span>`:''}</li>`).join('')}</ol>
+      <div class="pc-voters">${who.map(id=>`<span class="voter ${voted.has(id)?'done':''}" title="${esc(nm(id))}${voted.has(id)?' voted':' hasn’t voted'}">${av(id,'xs')}${voted.has(id)?ic('check'):''}</span>`).join('')}<span class="muted tiny">${voted.size}/${who.length} voted${anyVotes?' · points so far':''}</span></div>
       <div class="row gap wrap">${canVote?`<button class="btn ${mineVoted?'':'pink'} sm" data-act="modal" data-v="vote" data-id="${pl.id}">${ic('vote')} ${mineVoted?'Change my vote':'Vote now'}</button>`:'<span class="muted tiny">Only people coming can vote.</span>'}
-        ${pl.created_by===me().id && t.votes.length?`<button class="btn sm" data-act="closeVote" data-id="${pl.id}">Close vote now</button>`:''}</div></div>`;
+        ${pl.created_by===me().id && t.votes.length?`<button class="btn sm" data-act="closeVote" data-id="${pl.id}">Close vote now</button>`:''}
+        ${pl.created_by===me().id?`<button class="btn sm ghost" data-act="deletePlan" data-id="${pl.id}">${ic('trash')} Delete</button>`:''}</div></div>`;
   }
   if(pl.status==='confirmed'){
-    const o = pl.options[pl.chosen||0]||{}; const past = pl.date && pl.date < todayYmd();
+    const ci = pl.chosen||0, o = pl.options[ci]||{}; const past = pl.date && pl.date < todayYmd();
+    const t = tally(pl), anyVotes = t.votes.length>0;
+    const pts = i => anyVotes ? `${t.score[i]} pt${t.score[i]===1?'':'s'}${t.vetoes[i]?` · ${t.vetoes[i]} can’t`:''}` : '';
+    // The locked plan plus the next two best-voted options, in case plans change.
+    const alts = (!past && pl.options.length>1 && anyVotes) ? t.order.filter(i=>i!==ci).slice(0,2) : [];
     return `<div class="plancard confirmed"><div class="pc-head"><span class="pc-tag ok">${ic('check')} ${past?'Done':'Plan locked'}</span><b>${esc(pl.title)}</b></div>
       <div class="pc-when">${ic('cal')}<b>${pl.date?fmtDate(pl.date):'Date to be set'}</b>${pl.time?` · ${esc(pl.time)}`:''}<span class="grow"></span><span class="avs">${(pl.who||[]).map(w=>av(w,'xs')).join('')}</span></div>
-      <span class="muted tiny">${esc(o.area||'')}${o.price?' · '+esc(o.price):''}${past?'':' · Reminders: the evening before and 2 hours before'}</span>
-      ${inChat?`<div class="row gap wrap"><a class="btn sm" href="${mapsUrl(o)}" target="_blank" rel="noopener">${ic('maps')} Google Maps</a>${past?'':`<button class="btn sm" data-act="modal" data-v="editPlan" data-id="${pl.id}">${ic('edit')} Change date</button>`}</div>`:''}</div>`;
+      <span class="muted tiny">${esc(o.area||'')}${o.price?' · '+esc(o.price):''}${anyVotes?' · '+pts(ci):''}${past?'':' · Reminders: the evening before and 2 hours before'}</span>
+      ${alts.length?`<div class="pc-alts"><span class="eyebrow">Other options people liked</span>${alts.map(i=>{ const a = pl.options[i]; return `<div class="pc-alt"><span class="dotc" style="background:${(CATS[a.category]||CATS.shows).color}"></span><span class="grow"><b>${esc(a.name)}</b><span class="muted tiny">${esc(a.area||'')} · ${pts(i)}</span></span><a class="btn sm icon" href="${mapsUrl(a)}" target="_blank" rel="noopener" aria-label="Google Maps">${ic('maps')}</a>${inChat?`<button class="btn sm" data-act="switchPlan" data-id="${pl.id}" data-i="${i}">Switch to this</button>`:''}</div>`; }).join('')}</div>`:''}
+      ${inChat?`<div class="row gap wrap"><a class="btn sm" href="${mapsUrl(o)}" target="_blank" rel="noopener">${ic('maps')} Google Maps</a>${past?'':`<button class="btn sm" data-act="modal" data-v="editPlan" data-id="${pl.id}">${ic('edit')} Change date</button>`}<button class="btn sm ghost" data-act="deletePlan" data-id="${pl.id}">${ic('trash')} Delete plan</button></div>`:''}</div>`;
   }
-  return `<div class="plancard"><b>${esc(pl.title)}</b> <span class="muted tiny">cancelled</span></div>`;
+  return `<div class="plancard cancelled"><b>${esc(pl.title)}</b> <span class="muted tiny">was cancelled</span></div>`;
 }
 
 /* ---------- LOCATION: search a place or city (OpenStreetMap Nominatim, free, no key) ---------- */
@@ -606,20 +624,65 @@ async function nomReverse(lat, lng){
   if(!r.ok) throw new Error('busy'); const x = await r.json();
   return {label:shortLabel(x.address, x.display_name||'Here'), ll:[lat,lng], cc:String((x.address||{}).country_code||'').toUpperCase()};
 }
-function geoPicker(){
-  const G = S.geo, q = G.q.trim();
-  return `<form class="geo" data-form="geoSearch">
-    <div class="row gap"><input id="geo-q" class="input" placeholder="Your area or city, e.g. Indiranagar, Bengaluru" value="${esc(G.q)}" autocomplete="off" aria-label="Search for your area or city"><button class="btn" type="submit" ${G.busy?'disabled':''}>${ic('pin')} Search</button></div>
-    <button type="button" class="linkbtn" data-act="geoLocate">${ic('pin')} Use my current location</button>
-    ${G.busy?'<span class="tiny muted">Searching…</span>':''}${G.err?`<p class="err">${esc(G.err)}</p>`:''}
-    <div class="chips geo-res">${G.results.map((r,i)=>`<button type="button" class="chip ${G.pick&&G.pick.i===i?'on':''}" data-act="geoPick" data-i="${i}">${G.pick&&G.pick.i===i?ic('check'):''}${esc(r.label)}</button>`).join('')}
-      ${q&&G.searched?`<button type="button" class="chip ${G.pick&&G.pick.i===-1?'on':''}" data-act="geoPick" data-i="-1">Use “${esc(q)}” as typed</button>`:''}</div></form>`;
+/* Type-ahead place search (Photon: free, OpenStreetMap data). Used for "Where are you usually?" and for "Others" in the planner. */
+let acTimer = null, acSeq = 0;
+const acState = ns => ns==='area' ? S.areaAc : S.geo;
+function photonLabel(pr){
+  const city = pr.city || pr.town || pr.village || pr.county || pr.state || '';
+  const parts = [...new Set([pr.name || pr.street || '', pr.district && pr.district!==pr.name ? pr.district : '', city, pr.country || ''].filter(Boolean))];
+  return parts.slice(0,3).join(', ');
 }
-async function geoSearch(){
-  const G = S.geo, q = G.q.trim(); if(!q) return;
-  G.busy = true; G.err = ''; G.results = []; G.pick = null; G.searched = false; render();
-  try{ G.results = await nomSearch(q, {limit:5}); G.searched = true; if(!G.results.length) G.err = 'Nothing found. Try a bigger area, or use it as typed.'; }
-  catch(e){ G.err = e.message || 'Search failed.'; G.searched = true; }
+async function photonSearch(q, near){
+  const bias = near ? `&lat=${near[0]}&lon=${near[1]}` : '';
+  const r = await fetch(`https://photon.komoot.io/api/?limit=6&lang=en&q=${encodeURIComponent(q)}${bias}`);
+  if(!r.ok) throw new Error('busy');
+  const seen = new Set(), out = [];
+  for(const f of ((await r.json()).features||[])){
+    const pr = f.properties||{}, label = photonLabel(pr); if(!label || seen.has(label)) continue; seen.add(label);
+    out.push({label, ll:[f.geometry.coordinates[1], f.geometry.coordinates[0]], cc:String(pr.countrycode||'').toUpperCase()});
+  }
+  return out;
+}
+function acType(ns, value){
+  const G = acState(ns); G.q = value; G.err = ''; if(ns==='home') G.pick = null; clearTimeout(acTimer);
+  const q = value.trim();
+  if(q.length<2){ const had = G.items.length || G.busy; G.items = []; G.busy = false; G.open = false; if(had) render(); return; }
+  G.busy = true; const my = ++acSeq;
+  acTimer = setTimeout(async ()=>{
+    const near = ns==='area' ? homeLL() : null; let items = [];
+    try{ items = await photonSearch(q, near); }
+    catch(e){ try{ items = await nomSearch(q, {limit:5, near}); }catch(e2){ G.err = 'Search is busy. Try again in a moment.'; } }
+    if(my!==acSeq) return; G.items = items; G.busy = false; G.open = true; render();
+  }, 280);
+}
+function acInput(ns, placeholder){
+  const G = acState(ns), q = G.q.trim(), items = G.items||[];
+  const showList = G.open && q.length>=2;
+  return `<div class="ac" data-ns="${ns}"><div class="ac-box">${ic('pin')}<input id="${ns==='home'?'geo-q':'area-q'}" data-ac="${ns}" placeholder="${esc(placeholder)}" value="${esc(G.q)}" autocomplete="off" role="combobox" aria-expanded="${showList}" aria-label="${esc(placeholder)}">${G.busy?'<span class="spinner sm"></span>':''}${ns==='home'?`<button type="button" class="btn sm yellow" data-act="acEnter" data-ns="home">Search</button>`:''}</div>
+    ${showList?`<ul class="ac-list" role="listbox">${items.map((it,i)=>`<li role="option"><button type="button" class="ac-item" data-act="acPick" data-ns="${ns}" data-i="${i}">${ic('pin')}<span><b>${esc(it.label.split(',')[0])}</b><small>${esc(it.label.split(',').slice(1).join(',').trim())}</small></span></button></li>`).join('')}
+      <li role="option"><button type="button" class="ac-item typed" data-act="acPick" data-ns="${ns}" data-i="-1">${ic('plus')}<span><b>Use “${esc(G.q.trim())}”</b><small>as typed</small></span></button></li></ul>`:''}
+    ${G.err?`<p class="err">${esc(G.err)}</p>`:''}</div>`;
+}
+function acPick(ns, i){
+  const G = acState(ns), it = i===-1 ? {label:G.q.trim(), ll:null, cc:''} : G.items[i]; if(!it || !it.label) return;
+  if(ns==='home'){ G.pick = {...it, i}; G.q = it.label; }
+  else { const pf = prefsFor(curGroup()); pf.others = pf.others||[]; if(!pf.others.some(o=>o.label===it.label)) pf.others.push({label:it.label, ll:it.ll}); G.q = ''; }
+  G.items = []; G.open = false; render();
+}
+function acEnter(ns){
+  const G = acState(ns); if(G.items && G.items.length) return acPick(ns, 0);
+  if(G.q.trim().length>=2) return ns==='home' ? geoSearch() : acPick(ns, -1);
+}
+function geoPicker(){
+  return `${acInput('home','Your area or city, e.g. Powai, Mumbai')}
+    <button type="button" class="linkbtn" data-act="geoLocate">${ic('pin')} Use my current location</button>
+    ${S.geo.pick?`<p class="tiny">Selected: <b>${esc(S.geo.pick.label)}</b></p>`:''}`;
+}
+async function geoSearch(){ // the Search button (or Enter) before any suggestions have arrived
+  const G = S.geo, q = G.q.trim(); if(q.length<2) return;
+  G.busy = true; G.err = ''; render();
+  try{ G.items = await nomSearch(q, {limit:5}); G.open = true; if(!G.items.length) G.err = 'Nothing found. Try a bigger area, or use it as typed.'; }
+  catch(e){ G.err = e.message || 'Search failed.'; G.open = true; }
   G.busy = false; render();
 }
 function geoLocate(){
@@ -627,12 +690,12 @@ function geoLocate(){
   if(!navigator.geolocation){ G.err = 'This browser can’t share its location. Search instead.'; return render(); }
   G.busy = true; G.err = ''; render();
   navigator.geolocation.getCurrentPosition(async pos=>{
-    try{ const r = await nomReverse(pos.coords.latitude, pos.coords.longitude); G.results = [r]; G.pick = {...r, i:0}; G.q = r.label; G.searched = true; }
+    try{ const r = await nomReverse(pos.coords.latitude, pos.coords.longitude); G.pick = {...r, i:0}; G.q = r.label; G.items = []; G.open = false; }
     catch(e){ G.err = 'Couldn’t work out where that is. Search instead.'; }
     G.busy = false; render();
   }, ()=>{ G.busy = false; G.err = 'Location is blocked. Search for your area instead.'; render(); }, {timeout:10000});
 }
-const resetGeo = () => { S.geo = {q:'', results:[], busy:false, err:'', pick:null, searched:false}; };
+const resetGeo = () => { S.geo = {q:'', items:[], busy:false, err:'', pick:null, open:false, searched:false}; };
 
 // Places saved without a map position (anything outside the built-in Mumbai list) are looked up slowly in the background.
 const geoCache = store.get('geo', {}); const geoFail = new Set(); let geoBusy = false, geoCount = 0;
@@ -876,7 +939,8 @@ function calendarPanel(g){
     return `<div class="calitem ${pl.group_id===g.id?'':'other'}"><span class="datebox"><small>${new Date(pl.date+'T12:00').toLocaleDateString('en-IN',{month:'short'})}</small><b>${new Date(pl.date+'T12:00').getDate()}</b></span>
       <div class="grow"><b>${esc(pl.title)}</b><span class="muted tiny">${esc(gg.name)} · ${esc(pl.time||'')} · ${esc(o.area||'')}</span>
       ${pl.date>=todayYmd()?`<span class="remind">${ic('bell')} Reminders: ${fmtDate(ymd(new Date(new Date(pl.date+'T12:00').getTime()-864e5)))} 7 pm · 2 hours before</span>`:''}</div>
-      <a class="btn sm icon" href="${mapsUrl(o)}" target="_blank" rel="noopener" aria-label="Google Maps">${ic('maps')}</a></div>`; }).join('');
+      <a class="btn sm icon" href="${mapsUrl(o)}" target="_blank" rel="noopener" aria-label="Google Maps">${ic('maps')}</a>
+      <button class="btn sm ghost cal-del" data-act="deletePlan" data-id="${pl.id}">${ic('trash')} Delete</button></div>`; }).join('');
   const hasUpcoming = plans.some(p=>p.group_id===g.id && p.date>=todayYmd()) || votingIn(g.id).length;
   const top = placesOf(g.id).filter(p=>!p.done).sort((a,b)=>interested(b.id).length-interested(a.id).length)[0];
   const sticky = hasUpcoming ? '' : `<div class="stickynote"><b>Let’s plan something together!</b><span>${top?`${esc(top.name)} has been on ${esc(g.name)}’s list since ${dayLabel(top.created_at)}${interested(top.id).length?` and ${interested(top.id).length} people want to go`:''}.`:'Your list is empty. Share a reel first.'}</span>
@@ -926,7 +990,7 @@ function swipeCard(c, i, extra='', style=''){
 function swipeStart(){
   if(S.swipeInit) return; S.swipeInit = true;
   const first = TASTE_CARDS.findIndex(c=>!tasteState(c.id));
-  S.swipeIdx = first<0 ? (isPhone() ? TASTE_CARDS.length : 0) : first;
+  S.swipeIdx = isPhone() ? (first<0 ? TASTE_CARDS.length : first) : 0; // laptop: the deck only holds cards still to answer
 }
 const WHEEL_STEP = 21;
 function wheelOff(k,i,n){ let o=((k-i)%n+n)%n; if(o>n/2) o-=n; return o; }
@@ -960,8 +1024,11 @@ function swipeView(){
       ${i>0?`<button class="linkbtn undo" data-act="pUndo">${ic('left')} Undo last</button>`:''}
     </main>`;
   }
-  const i = Math.max(0, Math.min(S.swipeIdx, n-1)), cur = TASTE_CARDS[i];
-  const cards = TASTE_CARDS.map((c,k)=>{ const o=wheelOff(k,i,n); return swipeCard(c,k,o===0?'off0':'', posCss(o)); }).join('');
+  if(S.swipeEdit) return swipeEditView();
+  const L = deckCards(); if(!L.length) return swipeDoneDesk();
+  const m = L.length, i = Math.max(0, Math.min(S.swipeIdx, m-1));
+  const cards = L.map((c,k)=>{ const o=wheelOff(k,i,m); return swipeCard(c,k,(o===0?'off0':'')+(o===0&&S.swipeAnim?' promote':''), posCss(o)); }).join('');
+  S.swipeAnim = false;
   return `<main class="swipe desk" data-tour="swipe">${swipeHead(false)}
     <div class="stage">
       <button class="arrow" data-act="swipeNav" data-v="-1" aria-label="Previous card">${ic('left')}</button>
@@ -973,8 +1040,29 @@ function swipeView(){
       <button class="btn xl" data-act="swipeNav" data-v="1">Skip ${ic('right')}</button>
       <button class="btn xl pink" data-act="taste" data-v="like">${ic('up')} Love it</button>
     </div>
-    <div class="tdots" id="tdots">${TASTE_CARDS.map((c,k)=>`<button class="tdot ${k===i?'cur':''} ${tasteState(c.id)||''}" data-act="swipeGo" data-v="${k}" aria-label="${esc(c.label)}"></button>`).join('')}</div>
+    <div class="tdots" id="tdots">${L.map((c,k)=>`<button class="tdot ${k===i?'cur':''}" data-act="swipeGo" data-v="${k}" aria-label="${esc(c.label)}"></button>`).join('')}</div>
   </main>`;
+}
+/* laptop: answered cards leave the deck. When none are left: a "you're all set" banner, and an Edit screen that changes single answers. */
+const deckCards = () => isPhone() ? TASTE_CARDS : TASTE_CARDS.filter(c=>!tasteState(c.id));
+function swipeDoneDesk(){
+  const {t} = swipeCounts(), n = TASTE_CARDS.length, loved = t.like.map(id=>TASTE_BY_ID[id]).filter(Boolean);
+  return `<main class="swipe desk done-desk" data-tour="swipe"><section class="taste-done">
+    <div class="td-badge">${ic('check')}</div><span class="eyebrow">${n} of ${n} cards done</span>
+    <h1>We know your taste now.<br><span class="hl">Your profile is all set.</span></h1>
+    <p>You loved <b>${t.like.length}</b> and passed on <b>${t.nope.length}</b>. Yonder uses this to shape every plan and idea for you.</p>
+    <div class="td-chips">${loved.slice(0,8).map(c=>`<span class="chip on">${ic('heart')}${esc(c.label)}</span>`).join('')}${loved.length>8?`<span class="chip">+${loved.length-8} more</span>`:''}</div>
+    <div class="row gap wrap center"><button class="btn xl" data-act="tasteEdit">${ic('edit')} Edit my answers</button><button class="btn xl yellow" data-go="home">Back to home</button></div></section></main>`;
+}
+function swipeEditView(){
+  return `<main class="swipe desk edit-desk" data-tour="swipe"><div class="swipe-head"><div><span class="eyebrow">Edit your taste</span>
+      <h1>Change any answer. <span class="hl">Nothing starts over.</span></h1><p class="muted">Tap <b>Love</b> or <b>Not for me</b> on any card. It saves right away.</p></div>
+      <button class="btn yellow xl" data-act="tasteEditDone">${ic('check')} Done</button></div>
+    <div class="edit-grid">${TASTE_CARDS.map(c=>{ const st = tasteState(c.id);
+      return `<article class="edit-card ${st?'st-'+st:''}"><div class="ec-art" style="background:${c.art.bg};color:${c.art.fg}">${ic(c.art.icon)}</div>
+        <div class="ec-body"><b>${esc(c.label)}</b><small>${esc(c.d)}</small>
+          <div class="ec-btns"><button class="btn sm ${st==='like'?'pink':''}" data-act="tasteSet" data-id="${c.id}" data-v="like" aria-pressed="${st==='like'}">${ic('heart')} Love</button>
+            <button class="btn sm ${st==='nope'?'nope-on':''}" data-act="tasteSet" data-id="${c.id}" data-v="nope" aria-pressed="${st==='nope'}">${ic('x')} Not for me</button></div></div></article>`; }).join('')}</div></main>`;
 }
 function setTaste(id, v){
   const t = {like:[...((me().taste||{}).like||[])], nope:[...((me().taste||{}).nope||[])]};
@@ -988,7 +1076,7 @@ function setTaste(id, v){
 let wheelBusy = false;
 function wheelSync(){
   const deck = $('#deck'); if(!deck) return false;
-  const n = TASTE_CARDS.length, i = S.swipeIdx;
+  const L = deckCards(), n = L.length, i = S.swipeIdx;
   deck.querySelectorAll('.tcard').forEach(el=>{
     const k = +el.dataset.i, o = wheelOff(k,i,n), p = wheelPos(o), st = tasteState(el.dataset.id);
     el.className = 'tcard'+(o===0?' off0':'')+(st?' st-'+st:'');
@@ -999,17 +1087,16 @@ function wheelSync(){
   const {t, answered} = swipeCounts();
   const cnt = $('#sw-count'); if(cnt) cnt.textContent = `Taste swipe · ${answered} of ${n} answered`;
   const sum = $('#sw-sum'); if(sum) sum.innerHTML = `${t.like.length?`<span class="chip on">${ic('heart')} ${t.like.length} loved</span>`:''}${t.nope.length?`<span class="chip">${ic('x')} ${t.nope.length} not for me</span>`:''}`;
-  document.querySelectorAll('#tdots .tdot').forEach((d,k)=>{ d.className = 'tdot '+(k===i?'cur ':'')+(tasteState(TASTE_CARDS[k].id)||''); });
+  document.querySelectorAll('#tdots .tdot').forEach((d,k)=>{ d.className = 'tdot '+(k===i?'cur ':''); });
   mountSwipe(); return true;
 }
-function wheelGo(to, rel){ const n=TASTE_CARDS.length; S.swipeIdx = rel ? ((S.swipeIdx+to)%n+n)%n : ((to%n)+n)%n; if(!wheelSync()) render(); }
+function wheelGo(to, rel){ const n=deckCards().length||1; S.swipeIdx = rel ? ((S.swipeIdx+to)%n+n)%n : ((to%n)+n)%n; if(!wheelSync()) render(); }
 function wheelAnswer(v, el){
   el = el || document.querySelector('.deck .tcard.off0'); if(!el || wheelBusy) return;
   wheelBusy = true; const id = el.dataset.id; el.classList.remove('dragging'); el.classList.add(v==='like'?'fly-up':'fly-down');
   setTimeout(()=>{
-    setTaste(id, v); S.swipeIdx = (S.swipeIdx+1) % TASTE_CARDS.length;
-    el.style.transition = 'opacity .45s ease'; el.classList.remove('fly-up','fly-down'); wheelSync();
-    setTimeout(()=>{ el.style.transition=''; wheelBusy=false; }, 480);
+    setTaste(id, v); // the answered card leaves the deck; the next one takes its place
+    const left = deckCards().length; S.swipeIdx = left ? Math.min(S.swipeIdx, left-1) : 0; S.swipeAnim = true; wheelBusy = false; render();
   }, 240);
 }
 
@@ -1125,8 +1212,7 @@ function planPlaceModal(m){
     <p class="muted">${esc([p.area, p.price].filter(Boolean).join(' · '))}${p.area||p.price?'. ':''}Pick who’s coming and when. It goes straight onto the calendar.</p>
     <form class="stack" data-form="planPlace">
       ${g.is_personal ? '' : `<fieldset><legend>Who’s coming?</legend><div class="chips">${membersOf(g.id).map(id=>chip('ppWho', id, m.who.includes(id), `${av(id,'xs')}${esc(nm(id))}`, 'person')).join('')}</div></fieldset>`}
-      <fieldset><legend>When?</legend><div class="chips">${WHEN.map(([k,l])=>chip('ppWhen', k, m.when===k, l)).join('')}</div>
-        ${m.when==='date' ? `<input type="date" id="pp-date" class="input sm" value="${esc(m.date)}" min="${todayYmd()}" required>` : ''}</fieldset>
+      <fieldset><legend>Pick a date</legend><input type="date" id="pp-date" class="input sm" value="${esc(m.date)}" min="${todayYmd()}" required></fieldset>
       <label class="lbl" for="pp-time">Time</label><input id="pp-time" class="input" value="${esc(m.time)}" placeholder="8:00 pm" maxlength="20">
       <button class="btn primary xl" type="submit">${ic('check')} Add to the calendar</button>
     </form>`;
@@ -1246,7 +1332,7 @@ function quickPlan(g, p, exclude=[]){
     if(fans.length && !x.fromList) why.push(`${fans.map(nm).slice(0,2).join(' and ')} like${fans.length===1?'s':''} this kind of thing`);
     const pp = perPerson(x.price);
     if(max && pp!=null){ if(pp<=max) { s+=1; why.push(pp===0?'free':`about ${fmtMoney(pp)} each`); } else s-=3; }
-    if(x.lat!=null){ const k = km(centre,[x.lat,x.lng]); const areaSel = p.areas.filter(a=>a!=='near');
+    if(x.lat!=null){ const k = km(centre,[x.lat,x.lng]); const areaSel = [...p.areas.filter(a=>!['near','anywhere','other'].includes(a)), ...(p.areas.includes('other') ? (p.others||[]).map(o=>areaLabel(o.label)) : [])];
       if(areaSel.length){ if(areaSel.includes(areaLabel(x.area))) { s+=2; why.push(`in ${areaLabel(x.area)}`); } else s-=1; }
       else if(p.areas.includes('near') && k<6){ s+=1.2; why.push('easy for most of you to reach'); } }
     if(extra && (extra.includes(x.name.toLowerCase()) || extra.includes((areaLabel(x.area)||'~').toLowerCase()))) s+=2;
@@ -1256,8 +1342,8 @@ function quickPlan(g, p, exclude=[]){
     return {x, s: s + Math.random()*0.3, why};
   }).sort((a,b)=>b.s-a.s);
   const out = [], seen = new Set();
-  for(const c of scored){ if(out.length>=3) break; if(seen.has(c.x.category) && scored.length>6 && out.length<2) continue; seen.add(c.x.category); out.push(c); }
-  for(const c of scored){ if(out.length>=3) break; if(!out.includes(c)) out.push(c); }
+  for(const c of scored){ if(out.length>=5) break; if(seen.has(c.x.category) && scored.length>10 && out.length<3) continue; seen.add(c.x.category); out.push(c); }
+  for(const c of scored){ if(out.length>=5) break; if(!out.includes(c)) out.push(c); }
   return {mode:'quick', reply:'', options: out.map(({x,why})=>({name:x.name, area:x.area, category:x.category, price:x.price, why: (why.slice(0,3).join(' · ') || 'A good fit for the group').replace(/^./,c=>c.toUpperCase()), place_id:x.place_id||null}))};
 }
 const SYN = {cafe:['coffee','cafe','café','brunch','work from','bakery'], bars:['drink','bar','cocktail','pub','speakeasy','mocktail'], food:['food','eat','dinner','kebab','late-night','late night','street'], sunset:['sunset','beach','walk','outdoor','sea'], shows:['comedy','stand-up','standup','gig','music','show','open mic'], workshop:['workshop','class','pottery','art','craft','dance'], shop:['shop','shopping','store','boutique','mall','market','thrift','vintage','clothes']};
@@ -1346,23 +1432,30 @@ function withCoords(p){
 let secsTimer = null;
 function startBusy(kind, gid){
   S.busy = {kind, gid, t:Date.now(), id:Math.random()}; clearInterval(secsTimer);
-  secsTimer = setInterval(()=>{ const el=$('#secs'); if(el && S.busy) el.textContent = Math.round((Date.now()-S.busy.t)/1000); }, 1000);
-  render(); return S.busy.id;
+  secsTimer = setInterval(()=>{
+    if(!S.busy) return; const secs = (Date.now()-S.busy.t)/1000;
+    const el=$('#secs'); if(el) el.textContent = Math.round(secs);
+    const line=$('#ps-line'), lines = S.busy.kind==='ask' ? ASK_LINES : PLAN_LINES; if(line) line.textContent = lines[Math.floor(secs/2.4) % lines.length];
+  }, 500);
+  render();
+  requestAnimationFrame(()=>{ const pb=$('.pbody'); if(pb) pb.scrollTop=0; const ps=$('.planning-screen'); if(ps) ps.scrollIntoView({block:'center'}); });
+  return S.busy.id;
 }
 function endBusy(){ S.busy=null; clearInterval(secsTimer); }
 const todayText = () => new Date().toLocaleDateString('en-US',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
 function prefsForServer(g, p){
   const who = g.is_personal?[me().id]:p.who;
-  return {who, when:(WHEN.find(w=>w[0]===p.when)||[])[1], date: ymd(whenToDate(p)), moods:p.moods.map(k=>(MOODS.find(m=>m[0]===k)||[])[1]),
-    budget:(budgetOpts().find(b=>b[0]===p.budget)||[])[1]||'not set', areas:p.areas.map(a=>a==='near'?'near most of us':a), source:p.source, memory:p.memory, extra:p.extra,
+  const date = ymd(whenToDate(p));
+  return {who, when:fmtDate(date), date, moods:p.moods.map(k=>(MOODS.find(m=>m[0]===k)||[])[1]),
+    budget:(budgetOpts().find(b=>b[0]===p.budget)||[])[1]||'not set', areas:p.areas.flatMap(a=>a==='near' ? ['near most of us'] : a==='anywhere' ? ['anywhere in the city'] : a==='other' ? (p.others||[]).map(o=>o.label) : [a]), source:p.source, memory:p.memory, extra:p.extra,
     // Where the people coming usually are, so the AI picks places in the right city.
     locations:[...new Set(who.map(u=>homeOf(prof(u)).label).filter(Boolean))].slice(0,6)};
 }
-/* One page of ideas = 3 options. `exclude` keeps later pages from repeating earlier ones. */
+/* One page of ideas = 5 options. `exclude` keeps later pages from repeating earlier ones. */
 async function fetchPlanPage(g, p, exclude){
   let res = await api.ai('plan', {group_id:g.id, today:todayText(), prefs:{...prefsForServer(g,p), exclude}});
   if(res.ok && Array.isArray(res.options) && res.options.length){
-    return {mode:'ai', reply:res.reply||'', options:res.options.slice(0,3).map(o=>({...o, place_id: o.place_id && placeById(o.place_id) ? o.place_id : null}))};
+    return {mode:'ai', reply:res.reply||'', options:res.options.slice(0,5).map(o=>({...o, place_id: o.place_id && placeById(o.place_id) ? o.place_id : null}))};
   }
   if(res.reason==='limit') toast('You’ve used today’s AI plans. Here are quick picks instead.');
   return quickPlan(g, p, exclude);
@@ -1420,16 +1513,29 @@ const DEFAULT_TIME = {bars:'8:00 pm', cafe:'11:00 am', food:'8:30 pm', sunset:'5
 async function lockPlace(m){
   const p = placeById(m.id); if(!p) return; const gg = groupById(p.group_id);
   if(!m.who.length){ toast('Pick at least one person who’s coming'); return; }
-  const date = ymd(whenToDate({when:m.when, date:m.date}));
+  if(!m.date){ toast('Pick a date'); return; }
+  const date = ymd(whenToDate({date:m.date}));
   const o = {place_id:p.id, name:p.name, area:p.area||'', category:p.category, price:p.price||'', why:p.note||'From your bucket list'};
   const time = (m.time||'').trim() || DEFAULT_TIME[p.category] || '7:00 pm';
-  const pl = await api.createPlan(gg.id, {title:p.name, options:[o], prefs:{when:m.when, date}, who:m.who.slice(), date, time});
+  const pl = await api.createPlan(gg.id, {title:p.name, options:[o], prefs:{date}, who:m.who.slice(), date, time});
   await api.sendMessage(gg.id, 'plan', 'Plan locked', {plan_id:pl.id});
   S.modal = null;
   await confirmPlan(D.plans.find(x=>x.id===pl.id) || pl);
   S.gid = gg.id; S.view = 'groups'; S.panel = 'calendar'; S.mobilePane = 'panel'; store.set('view','groups');
   const d = new Date(date+'T12:00'); S.calMonth = new Date(d.getFullYear(), d.getMonth(), 1); S.calDay = date;
   toast(`${p.name} is on the calendar: ${fmtDate(date)} at ${time}`); render();
+}
+async function ensurePlaceId(o, gid){
+  let place_id = o.place_id && placeById(o.place_id) ? o.place_id : null;
+  if(!place_id){ const [row] = await api.addPlaces(gid, [withCoords({name:o.name, area:o.area, category:o.category, price:o.price, note:o.why, source_kind:'ai'})]); place_id = row.id; }
+  return place_id;
+}
+async function switchPlan(pl, i){
+  const o = pl && pl.options[i]; if(!o) return;
+  const place_id = await ensurePlaceId(o, pl.group_id);
+  await api.updatePlan(pl.id, {chosen:i, place_id, title:o.name});
+  await api.sendMessage(pl.group_id, 'system', `Plan switched to ${o.name}: ${pl.date?fmtDate(pl.date):''}${pl.time?' at '+pl.time:''}.`);
+  toast(`Switched to ${o.name}`);
 }
 async function confirmPlan(pl){
   const t = tally(pl), o = pl.options[t.winner] || pl.options[0];
@@ -1461,7 +1567,7 @@ async function sendToVote(g){
   const options = pickedOptions(res);
   if(options.length<2){ toast('Pick at least 2 ideas to vote on'); return; }
   const p = res.prefs; const date = ymd(whenToDate(p));
-  const title = `${p.when==='weeknight'?'Weeknight':fmtDate(date).split(',')[0]} plan`;
+  const title = `${fmtDate(date).split(',')[0]} plan`;
   const pl = await api.createPlan(g.id, {title, options, prefs:p, who:p.who, date, time:null});
   await api.sendMessage(g.id, 'plan', 'Vote started', {plan_id:pl.id});
   delete S.results[g.id];
@@ -1476,6 +1582,7 @@ async function pickSolo(g, key){
 /* ================= events ================= */
 document.addEventListener('pointerdown', e=>{ if(e.target.closest('.btn,.chip,.ptab,.gitem')) buzz(8); });
 document.addEventListener('click', async e=>{
+  if(!e.target.closest('.ac') && (S.geo.open || S.areaAc.open)){ S.geo.open = false; S.areaAc.open = false; document.querySelectorAll('.ac-list').forEach(x=>x.remove()); } // clicking elsewhere closes the dropdown
   const goEl = e.target.closest('[data-go]');
   if(goEl){ e.preventDefault(); if(S.modal && S.modal.noClose) return; S.modal=null; go(goEl.dataset.go); return; }
   const el = e.target.closest('[data-act]'); if(!el) return;
@@ -1505,13 +1612,12 @@ document.addEventListener('click', async e=>{
     case 'joinYes': { const m=S.modal; try{ const jg = await api.joinGroup(m.code); S.modal=null; S.gid=jg.id; S.view='groups'; toast(m.info && m.info.is_member ? 'Opened '+jg.name : 'You joined '+jg.name); }catch(err){ m.err = err.message; render(); break; } continueAfterLogin(); break; }
     case 'joinNo': S.modal=null; toast('No problem. You can still join later with the same link or code.'); continueAfterLogin(); break;
     case 'planThis': { const p0=placeById(id); if(!p0) break; const g0=groupById(p0.group_id);
-      S.modal = {type:'planPlace', id, who: g0.is_personal ? [me().id] : membersOf(g0.id), when:'sat', date:'', time: DEFAULT_TIME[p0.category] || '7:00 pm'}; render(); break; }
+      S.modal = {type:'planPlace', id, who: g0.is_personal ? [me().id] : membersOf(g0.id), date: ymd(nextDow(6)), time: DEFAULT_TIME[p0.category] || '7:00 pm'}; render(); break; }
     case 'ppWho': { const m=S.modal, i=m.who.indexOf(v); if(i>=0) m.who.splice(i,1); else m.who.push(v); render(); break; }
-    case 'ppWhen': S.modal.when = v; render(); break;
     case 'calNav': S.calMonth = new Date(S.calMonth.getFullYear(), S.calMonth.getMonth()+(+v), 1); render(); break;
     case 'calDay': S.calDay = v||null; render(); break;
     case 'pref': { const p=prefsFor(g); const f=el.dataset.f; if(el.dataset.multi==='1'){ const arr=p[f]; const i=arr.indexOf(v); if(i>=0) arr.splice(i,1); else arr.push(v);
-        if(f==='areas'){ if(v==='near' && arr.includes('near')) p.areas=['near']; else if(v!=='near') p.areas=p.areas.filter(x=>x!=='near'); } }
+        if(f==='areas'){ if((v==='near' || v==='anywhere') && arr.includes(v)) p.areas=[v]; else if(v!=='near' && v!=='anywhere') p.areas=p.areas.filter(x=>x!=='near' && x!=='anywhere'); } }
       else p[f] = (p[f]===v && f!=='when' && f!=='source') ? '' : v; render(); break; }
     case 'clearResults': delete S.results[g.id]; render(); break;
     case 'stopAI': endBusy(); render(); break;
@@ -1551,8 +1657,16 @@ document.addEventListener('click', async e=>{
     case 'pAnswer': phoneAnswer(v); break;
     case 'pUndo': phoneUndo(); break;
     case 'swipeAgain': S.swipeIdx=0; S.swipeAnim=true; render(); break;
-    case 'signOut': if(confirmInline(el, me().is_guest?'Sure? A guest session can’t be recovered.':'Log out?')){ await api.signOut(); S.auth='signedOut'; S.view='home'; render(); } break;
-    case 'geoPick': { const i=+el.dataset.i; const G=S.geo; G.pick = i===-1 ? {label:G.q.trim(), ll:null, cc:'', i:-1} : {...G.results[i], i}; render(); break; }
+    case 'signOut': if(confirmInline(el, me().is_guest?'Sure? A guest session can’t be recovered.':'Log out?')){ await api.signOut(); S.auth='signedOut'; S.view='home'; try{ history.replaceState(null,'',location.pathname); }catch(e){} render(); } break;
+    case 'acPick': acPick(el.dataset.ns, +el.dataset.i); break;
+    case 'acEnter': acEnter(el.dataset.ns); break;
+    case 'otherDel': { const pf = prefsFor(g); pf.others.splice(+el.dataset.i, 1); render(); break; }
+    case 'deletePlan': { const pl = D.plans.find(x=>x.id===id); if(pl && confirmInline(el, 'Delete this plan?')){ await api.updatePlan(id, {status:'cancelled'}); await api.sendMessage(pl.group_id, 'system', `${pl.title} was deleted.`); toast('Plan deleted'); } break; }
+    case 'switchPlan': await switchPlan(D.plans.find(x=>x.id===id), +el.dataset.i); break;
+    case 'tasteSet': setTaste(id, v); render(); break;
+    case 'tasteEditDone': S.swipeEdit = false; render(); window.scrollTo(0,0); break;
+    case 'chatMin': S.chatMin = !S.chatMin; store.set('chatMin', S.chatMin); S.stick = true; render(); break;
+    case 'tasteEdit': S.swipeEdit = true; go('swipe'); break;
     case 'geoLocate': geoLocate(); break;
     case 'saveArea': { if(!S.geo.pick) break; await api.saveProfile({home_area:encodeHome(S.geo.pick)}); resetGeo(); toast('Area saved'); render(); break; }
     case 'obDone': { const home = v==='skip' ? '' : encodeHome(S.geo.pick); await api.saveProfile({home_area:home||me().home_area||'', onboarded:true}); resetGeo(); S.modal={type:'welcome', noClose:true}; render(); break; }
@@ -1585,13 +1699,14 @@ document.addEventListener('input', e=>{
   if(el.dataset.pref) prefsFor(curGroup())[el.dataset.pref] = el.value;
   if(el.id==='sv-in' && S.modal) S.modal.raw = el.value;
   if(el.id==='jn-code' && S.modal) S.modal.code = el.value;
-  if(el.id==='geo-q') S.geo.q = el.value;
+  if(el.dataset.ac) acType(el.dataset.ac, el.value);
   if(el.id==='pp-date' && S.modal) S.modal.date = el.value;
   if(el.id==='pp-time' && S.modal) S.modal.time = el.value;
   if(el.id==='gd-filter' && S.modal){ S.modal.filter = el.value; render(); }
 });
 document.addEventListener('scroll', e=>{ if(e.target && e.target.id==='msgs'){ const m=e.target; S.stick = m.scrollHeight - m.scrollTop - m.clientHeight < 40; } }, true);
 document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.dataset && e.target.dataset.ac){ e.preventDefault(); acEnter(e.target.dataset.ac); return; } // Enter picks the first suggestion
   if(e.key==='Escape'){ if(tour.on){ tour.end(); return; } if(S.modal && !S.modal.noClose){ S.modal=null; render(); } }
   if(S.view==='swipe' && !S.modal && !isPhone() && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')){
     if(e.key==='ArrowRight') wheelGo(1,true);
@@ -1604,9 +1719,9 @@ document.addEventListener('submit', async e=>{
   e.preventDefault(); const f = e.target.dataset.form; const g = S.auth==='ready' ? curGroup() : null;
   const btn = e.target.querySelector('[type=submit]');
   try{
-    if(f==='guest'){ btn.disabled=true; S.auth = await api.signInGuest($('#g-name').value); await afterLogin(); }
-    else if(f==='login'){ btn.disabled=true; S.auth = await api.signIn($('#a-email').value.trim(), $('#a-pw').value); await afterLogin(); }
-    else if(f==='signup'){ btn.disabled=true; const r = await api.signUp($('#a-email').value.trim(), $('#a-pw').value, $('#a-name').value.trim()); if(r==='checkEmail'){ S.authErr='Check your inbox to confirm your email, then log in.'; S.authTab='login'; render(); return; } S.auth=r; await afterLogin(); }
+    if(f==='guest'){ btn.disabled=true; S.auth = await api.signInGuest($('#g-name').value); await afterLogin(true); }
+    else if(f==='login'){ btn.disabled=true; S.auth = await api.signIn($('#a-email').value.trim(), $('#a-pw').value); await afterLogin(true); }
+    else if(f==='signup'){ btn.disabled=true; const r = await api.signUp($('#a-email').value.trim(), $('#a-pw').value, $('#a-name').value.trim()); if(r==='checkEmail'){ S.authErr='Check your inbox to confirm your email, then log in.'; S.authTab='login'; render(); return; } S.auth=r; await afterLogin(true); }
     else if(f==='chat'){ const t = (S.drafts['chat-'+g.id]||'').trim(); if(!t) return;
       if(/https?:\/\//.test(t)){ S.drafts['chat-'+g.id]=''; S.modal={type:'save', step:'input', raw:t, groups:[g.id], picks:{}, extra:[]}; runExtract(S.modal); return; }
       S.drafts['chat-'+g.id]=''; S.stick=true; await api.sendMessage(g.id,'text',t); }
@@ -1638,8 +1753,10 @@ async function saveConfirm(){
   if(m.groups.length===1){ S.gid=m.groups[0]; }
   S.view='groups'; render();
 }
-async function afterLogin(){
-  S.authErr=''; applyRoute();
+async function afterLogin(fresh){
+  S.authErr='';
+  // Signing in, signing up or trying it always starts on Home. Opening a saved page address (#/…) keeps that page.
+  if(fresh){ S.view='home'; store.set('view','home'); try{ history.replaceState(null,'',location.pathname+'#/home'); }catch(e){} } else applyRoute();
   // An invite link never adds anyone by itself: show who is inviting and ask first.
   const code = S.joinCode; S.joinCode = null; try{ sessionStorage.removeItem('yonder-join'); }catch(e){}
   if(code){

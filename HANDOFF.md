@@ -1,5 +1,7 @@
 # Yonder: handoff for a new conversation
 
+> **Latest changes:** AI planner returns **5** options (pages of 5); loading screen replaces the form while planning; 'Where' has Anywhere in the city / Others (type-ahead via Photon, Nominatim fallback); date picker only; locked plans show 2 alternatives (Switch to this) and can be deleted (status 'cancelled'); chat can be hidden on laptop; laptop taste swipe removes answered cards and has an Edit grid; every sign-in opens Home. The AI function (`supabase/functions/ai/index.ts`) was redeployed for the 5-option change.
+
 > **Demo groups (latest):** a new guest gets Office gang (Bengaluru: Indiranagar, Koramangala, Bellandur, Marathahalli), Shopping (Bengaluru ethnic wear, with Shruti), Thailand trip (Phuket and Krabi, with a vote in progress) and Bandra Bunch (Mumbai). Needs `supabase/migration-demo-groups.sql` (already run). Coordinates for the new places are approximate (typed from memory), so check store outlets before presenting. Existing guests keep their old copy.
 
 > **Session 21 (latest):** every tab has its own address (`#/home`, `#/groups/<id>/<tab>`, `#/swipe`, `#/profile`) so Back/Forward work; invite links ask 'Join <group>?' first (SQL `supabase/migration-peek-group.sql`, already run in Supabase). Publish with `git push` then `sh tools/deploy_pages.sh`.

@@ -299,9 +299,9 @@ legend{font-family:var(--head); font-weight:800; font-size:14px; padding:0; marg
 .stamp{position:absolute; top:28px; padding:6px 12px; border:4px solid var(--ink); border-radius:8px; font-family:var(--head); font-weight:900; font-size:24px; opacity:0; transition:opacity .1s; pointer-events:none; z-index:2}
 .stamp.like{left:18px; background:var(--yellow); transform:rotate(-12deg)} .stamp.nope{right:18px; background:var(--ink); color:var(--white); transform:rotate(12deg)}
 .tcard.show-like .stamp.like,.tcard.show-nope .stamp.nope{opacity:1}
-.tc-state{position:absolute; top:12px; right:12px; display:inline-flex; gap:5px; align-items:center; font-weight:800; font-size:12px; padding:4px 9px; border:2.5px solid var(--ink); border-radius:999px; z-index:2}
-.tc-state.like{background:var(--yellow)} .tc-state.nope{background:var(--ink); color:var(--white)}
-.tc-state .i{width:13px; height:13px}
+.tc-state{position:absolute; top:14px; right:10px; display:inline-flex; gap:7px; align-items:center; font-family:var(--head); font-weight:900; font-size:17px; letter-spacing:.02em; text-transform:uppercase; padding:7px 14px; border:3.5px solid var(--ink); border-radius:10px; box-shadow:4px 4px 0 var(--ink); transform:rotate(-6deg); z-index:2}
+.tc-state.like{background:var(--pink)} .tc-state.nope{background:var(--ink); color:var(--white); box-shadow:4px 4px 0 var(--pink)}
+.tc-state .i{width:19px; height:19px; stroke-width:3}
 .swipe-actions{display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-top:14px}
 .tdots{display:flex; gap:7px; flex-wrap:wrap; justify-content:center}
 .tdot{width:15px; height:15px; border-radius:50%; border:2px solid var(--ink); background:var(--white); cursor:pointer; padding:0}
@@ -470,3 +470,69 @@ legend{font-family:var(--head); font-weight:800; font-size:14px; padding:0; marg
 
 /* tour bullets */
 .tour-list{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:5px; font-size:14.5px; line-height:1.35}
+
+/* ---- planner: loading screen, where-search, clearer badges ---- */
+.planning-screen{display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; padding:44px 20px; min-height:min(70vh,520px); justify-content:center; background:var(--yellow-2); border:var(--bw) solid var(--ink); border-radius:18px; box-shadow:var(--sh)}
+.planning-screen h3{font-size:26px; line-height:1.1; max-width:20ch; min-height:2.2em; display:flex; align-items:center}
+.ps-orb{width:84px; height:84px; border-radius:50%; background:var(--pink); border:var(--bw) solid var(--ink); box-shadow:var(--sh-sm); display:grid; place-items:center; animation:orb 1.6s ease-in-out infinite}
+.ps-orb .i{width:42px; height:42px; stroke-width:2.4}
+@keyframes orb{0%,100%{transform:scale(1) rotate(0)} 50%{transform:scale(1.12) rotate(12deg)}}
+.ps-bar{width:min(320px,80%); height:16px; border:var(--bw) solid var(--ink); border-radius:999px; background:var(--white); overflow:hidden}
+.ps-bar i{display:block; height:100%; width:40%; background:repeating-linear-gradient(45deg,var(--cobalt) 0 10px,var(--cobalt-2) 10px 20px); animation:slide 1.4s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-110%)} 100%{transform:translateX(280%)}}
+.go-btn{font-size:20px}
+.badge.b-list,.badge.b-new{display:inline-flex; gap:5px; align-items:center; white-space:nowrap} .badge .i{width:13px; height:13px}
+.badge.b-new{background:var(--pink); color:var(--ink)}
+.others{display:flex; flex-direction:column; gap:8px; margin-top:10px; padding:12px; border:2.5px dashed var(--ink); border-radius:12px; background:var(--cobalt-3)}
+.other-chip{padding-right:6px} .x-mini{display:inline-grid; place-items:center; width:22px; height:22px; margin-left:6px; border:2px solid var(--ink); border-radius:50%; background:var(--white); cursor:pointer; padding:0} .x-mini .i{width:12px; height:12px}
+/* type-ahead search */
+.ac{position:relative; width:100%; display:flex; flex-direction:column; gap:6px}
+.ac-box{display:flex; align-items:center; gap:8px; border:var(--bw) solid var(--ink); border-radius:12px; background:var(--white); padding:4px 4px 4px 12px; box-shadow:var(--sh-sm)}
+.ac-box:focus-within{background:#fffef7} .ac-box > .i{width:18px; height:18px; flex:none}
+.ac-box input{flex:1; min-width:0; border:0; outline:0; background:transparent; font:inherit; font-size:15px; padding:8px 0}
+.ac-list{list-style:none; margin:0; padding:6px; display:flex; flex-direction:column; gap:2px; border:var(--bw) solid var(--ink); border-radius:12px; background:var(--white); box-shadow:var(--sh-sm); max-height:280px; overflow:auto; z-index:30}
+.ac-item{display:flex; align-items:center; gap:10px; width:100%; padding:9px 10px; border:0; border-radius:8px; background:none; text-align:left; cursor:pointer; font:inherit}
+.ac-item:hover,.ac-item:focus-visible{background:var(--yellow-2); outline:none}
+.ac-item .i{width:18px; height:18px; flex:none} .ac-item span{display:flex; flex-direction:column; line-height:1.2} .ac-item small{color:var(--muted); font-size:12.5px}
+.ac-item.typed{border-top:2px dashed #ccc; border-radius:0 0 8px 8px}
+
+/* ---- hide / show the chat (laptop and tablet; on a phone the Chat tab already does this) ---- */
+.chat-restore,.chat-hide{display:none}
+@media (min-width:761px){
+  .chat-hide{display:flex; align-items:center; gap:8px; width:100%; padding:8px 14px; border:0; border-bottom:var(--bw) solid var(--ink); background:var(--yellow); cursor:pointer; font:inherit; text-align:left} .chat-hide:hover{background:#ffe24d} .chat-hide .i{width:18px; height:18px; flex:none} .chat-hide small{margin-left:auto; font-size:12px; color:var(--ink); opacity:.7}
+  .groups.chat-min{grid-template-columns:250px 1fr}
+  .groups.chat-min .chat{display:none}
+  .chat-restore{display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; border:0; border-bottom:var(--bw) solid var(--ink); background:var(--yellow); cursor:pointer; text-align:left; font:inherit}
+  .chat-restore:hover{background:#ffe24d} .chat-restore .i{width:22px; height:22px; flex:none} .chat-restore span{display:flex; flex-direction:column; flex:1; line-height:1.15} .chat-restore small{font-size:12.5px}
+}
+@media (min-width:761px) and (max-width:1240px){ .groups.chat-min{grid-template-columns:210px 1fr} }
+@media (min-width:761px) and (max-width:1000px){ .groups.chat-min{grid-template-columns:1fr} }
+@media (max-width:760px){ .chat-hide{display:none} }
+
+/* ---- plan cards ---- */
+.pc-opts li .pts{font-weight:800; font-size:13px; background:var(--white); border:2px solid var(--ink); border-radius:999px; padding:1px 8px; white-space:nowrap}
+.pc-opts li.lead .pts{background:var(--yellow)}
+.pc-alts{display:flex; flex-direction:column; gap:6px; padding:10px; border:2.5px dashed var(--ink); border-radius:12px; background:var(--white)}
+.pc-alt{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; padding:6px 0; border-top:2px solid #eee} .pc-alt:first-of-type{border-top:0} .pc-alt .grow{display:flex; flex-direction:column; line-height:1.2; min-width:0; flex:1 1 150px}
+.plancard.cancelled{opacity:.6}
+.cal-del{margin-left:4px}
+
+/* ---- home tagline ---- */
+.tagline{font-family:var(--head); font-weight:800; font-size:clamp(18px,2.4vw,26px); margin-top:8px}
+.tagline mark{background:var(--pink); padding:0 .2em; border-radius:4px}
+
+/* ---- taste swipe: laptop done banner and edit ---- */
+.taste-done{margin:24px auto; max-width:760px; padding:36px 32px; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; background:var(--pink); border:var(--bw) solid var(--ink); border-radius:22px; box-shadow:var(--sh-lg)}
+.taste-done h1{font-size:clamp(30px,4vw,48px); line-height:1.05}
+.td-badge{width:84px; height:84px; border-radius:50%; background:var(--yellow); border:var(--bw) solid var(--ink); box-shadow:var(--sh-sm); display:grid; place-items:center; animation:orb 2.4s ease-in-out infinite} .td-badge .i{width:46px; height:46px; stroke-width:3}
+.td-chips{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.edit-desk .swipe-head{display:flex; justify-content:space-between; align-items:flex-end; gap:20px}
+.edit-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; padding:6px 0 40px}
+.edit-card{display:flex; gap:12px; padding:12px; background:var(--white); border:var(--bw) solid var(--ink); border-radius:16px; box-shadow:var(--sh-sm)}
+.edit-card.st-like{background:var(--yellow-2)} .edit-card.st-nope{background:#eee}
+.ec-art{width:64px; height:64px; flex:none; display:grid; place-items:center; border:var(--bw) solid var(--ink); border-radius:14px} .ec-art .i{width:32px; height:32px}
+.ec-body{display:flex; flex-direction:column; gap:3px; min-width:0} .ec-body small{color:var(--muted); font-size:12.5px; line-height:1.25}
+.ec-btns{display:flex; gap:8px; margin-top:6px; flex-wrap:wrap} .btn.nope-on{background:var(--ink); color:var(--white)}
+
+.edit-desk{align-items:stretch!important} .edit-desk > *{width:100%; max-width:1180px; margin-left:auto; margin-right:auto} .edit-desk .swipe-head{flex-direction:row!important; align-items:flex-end}
+.done-desk{align-items:center}

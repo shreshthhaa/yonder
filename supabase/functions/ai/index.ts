@@ -57,23 +57,24 @@ const TASTE: Record<string, string> = {
 };
 
 /* ---------------- prompts (kept here so they can be versioned and evaluated) ---------------- */
-const PLAN_SYSTEM = `You are Yonder's planner. A group of friends wants to go out together. They can be anywhere in the world: work out the city from "locations" (where the people coming usually are), the areas they chose and the bucket list, and suggest places in that city. Suggest exactly 3 options that fit what they chose.
+const PLAN_SYSTEM = `You are Yonder's planner. A group of friends wants to go out together. They can be anywhere in the world: work out the city from "locations" (where the people coming usually are), the areas they chose and the bucket list, and suggest places in that city. Suggest exactly 5 options that fit what they chose.
 
 How to choose:
 1. Hard limits come first: who is coming, when, budget per person, areas, everything under "keep_in_mind" and "anything_else". Never suggest something that breaks one (for example a meat-only place when someone coming is vegetarian, a drinks-only bar when someone doesn't drink unless it is known for good mocktails, or something clearly above the budget).
 2. "ideas_from": "list" means only places from the bucket list; "new" means only places that are not on the list; "both" means include at least one bucket-list place if any fits.
 3. Prefer places that the people coming marked as interested, and kinds of things the people coming like. Avoid kinds of things they marked "not for me".
 4. Use past ratings: lean towards things like what they loved. Don't suggest a place they've already been to unless asked.
-5. Make the 3 options different from each other (kind of place, area or price), so the vote is a real choice.
+5. Make the 5 options different from each other (kind of place, area or price), so the vote is a real choice.
 6. New places must be real, well-known places in the group's city that are very likely still open. If you are not sure a place exists, pick from the list instead. Never invent a place.
 7. Only people in "coming" matter for tastes and limits. Ignore people who are not coming.
 8. "already_shown" lists places you suggested earlier in this session. Never suggest any of them again: this is a request for different ideas, so vary the kind of place and the area as well.
 9. Category "shop" is shopping: stores, boutiques, markets, malls, thrift and vintage shops. If they are in the mood for shopping, suggest those.
+10. "areas" can include "near most of us", "anywhere in the city" (no area limit) or places the people typed themselves. Respect them. If a typed place is small or unfamiliar, choose real, well-known places in and around it.
 
 For "why", write one or two short sentences that name the people it suits and the concrete reasons, e.g. "Kabir and Riya both saved it; about ₹1,250 each, inside your budget; good mocktails for Sana." Say "about" for prices and use the local currency of the group's city (budget_per_person shows the currency symbol to use). Never state exact opening hours, availability or bookings.
 
 Reply with JSON only, no markdown, in exactly this shape:
-{"reply": "<one friendly sentence about the 3 picks>", "options": [{"place_id": "<exact id from the bucket list, or null for a new place>", "name": "<place name>", "area": "<neighbourhood, city>", "category": "bars|cafe|food|sunset|shows|workshop|shop", "price": "<e.g. about 1,200 per person in local currency, or Free>", "why": "<1-2 sentences>"}]}`;
+{"reply": "<one friendly sentence about the 5 picks>", "options": [{"place_id": "<exact id from the bucket list, or null for a new place>", "name": "<place name>", "area": "<neighbourhood, city>", "category": "bars|cafe|food|sunset|shows|workshop|shop", "price": "<e.g. about 1,200 per person in local currency, or Free>", "why": "<1-2 sentences>"}]}`;
 
 const ASK_SYSTEM = `You are Yonder's assistant inside a friend group's planning space. The group can be anywhere in the world: work out the city from where the people usually are and the bucket list. Answer the person's question in one or two friendly sentences and suggest up to 3 places.
 
@@ -289,12 +290,12 @@ Deno.serve(async (req) => {
         coming: coming.length ? coming : ["just the person asking"],
         when: p.when ? `${p.when} (${p.date})` : p.date, in_the_mood_for: p.moods || [], budget_per_person: p.budget, areas: p.areas || [],
         locations: (Array.isArray(p.locations) ? p.locations : []).slice(0, 6).map((x: unknown) => str(x, 80)),
-        already_shown: (Array.isArray(p.exclude) ? p.exclude : []).slice(0, 12).map((x: unknown) => str(x, 80)),
+        already_shown: (Array.isArray(p.exclude) ? p.exclude : []).slice(0, 20).map((x: unknown) => str(x, 80)),
         ideas_from: p.source || "both", keep_in_mind: p.memory || [], anything_else: str(p.extra, 500),
         people: ctx.people, bucket_list: ctx.list,
       };
       const out = await callAI(PLAN_SYSTEM, JSON.stringify(input, null, 1));
-      const options = (Array.isArray(out.options) ? out.options : []).slice(0, 3).map((o: any) => cleanOption(o, ctx.validIds)).filter((o: any) => o.name);
+      const options = (Array.isArray(out.options) ? out.options : []).slice(0, 5).map((o: any) => cleanOption(o, ctx.validIds)).filter((o: any) => o.name);
       if (options.length < 1) throw new Error("no options");
       return json({ ok: true, reply: str(out.reply, 300), options, model: MODEL, timing: timing() });
     }
