@@ -1723,7 +1723,7 @@ function planPanel(g){
       <fieldset><legend>Where should ideas come from?</legend>${chipSet('source', SOURCE, p.source, false)}</fieldset>
       ${(g.memory||[]).length?`<fieldset><legend>Keep in mind <span class="muted tiny">(from the group’s memory)</span></legend>${chipSet('memory', g.memory.map(m=>[m,m]), p.memory, true)}</fieldset>`:''}
       <fieldset><legend>Anything else?</legend><textarea id="pf-extra" class="input" rows="2" placeholder="e.g. it’s Sana’s birthday, somewhere we can sit for hours, not too loud" data-pref="extra">${esc(p.extra)}</textarea></fieldset>
-      <button class="btn yellow xl block go-btn" type="submit">${ic('spark')} ${res?'Find your vibe':(g.is_personal?'Find my 5 best plans':'Find our 5 best plans')}</button>
+      <button class="btn yellow xl block go-btn" type="submit">${ic('spark')} Find your vibe</button>
       <span class="tiny muted center">Tuned to your taste, budget and who’s coming</span>
     </form>
     <form class="askform" data-form="ask">
