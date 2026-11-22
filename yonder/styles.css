@@ -509,6 +509,81 @@ legend{font-family:var(--head); font-weight:800; font-size:14px; padding:0; marg
 @media (min-width:761px) and (max-width:1000px){ .groups.chat-min{grid-template-columns:1fr} }
 @media (max-width:760px){ .chat-hide{display:none} }
 
+/* ================= PHONE DECLUTTER =================
+   Visual-only tidy-up for phones. Everything here lives inside max-width:760px,
+   so laptop / tablet layouts are untouched. No markup or behaviour changes. */
+@media (max-width:760px){
+  /* 1. lighter "neo-brutalist" weight: thinner outlines, shorter shadows */
+  :root{--bw:2px; --sh:3px 3px 0 var(--ink); --sh-sm:2px 2px 0 var(--ink); --sh-lg:4px 4px 0 var(--ink)}
+  .btn.xl{padding:12px 18px; font-size:16px}
+  .btn:hover{transform:none; box-shadow:var(--sh-sm)} .btn.xl:hover{box-shadow:var(--sh)}
+  .btn:active,.btn.xl:active{transform:translate(2px,2px); box-shadow:none}
+
+  /* 2. bottom nav: a little slimmer */
+  .mnav{padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
+  .mnav button{padding:4px; font-size:11.5px}
+
+  /* 3. Home: tighter, smaller headline, group chips in one swipeable row */
+  .home{padding:12px 12px 90px}
+  .home-head{margin-bottom:12px}
+  .home-head h1{font-size:26px; margin-top:4px}
+  .home-head .tagline{font-size:13.5px; margin-top:6px}
+  .bento{gap:12px}
+  .tile{padding:14px; gap:10px; border-radius:14px}
+  .t-plan{padding:14px; gap:10px; flex-direction:column; align-items:stretch; flex-wrap:nowrap}
+  .t-dyg h2,.t-plan h2,.t-swipe h2{font-size:20px}
+  .t-dyg{gap:10px}
+  .tp-groups{min-width:0; width:100%}
+  .gchips{flex-wrap:nowrap; overflow-x:auto; margin:0 -14px; padding:2px 14px 8px; scrollbar-width:none; -webkit-overflow-scrolling:touch}
+  .gchips::-webkit-scrollbar{display:none}
+  .gchip{flex:none}
+  .urow,.frow{padding:8px; gap:10px}
+  .idea{padding:7px}
+
+  /* 4. Groups: compact sticky switcher, one card instead of a card inside a card */
+  .groups{padding:6px 8px 80px; gap:8px}
+  .mswitch{position:sticky; top:calc(var(--top) + env(safe-area-inset-top,0px)); z-index:20; background:var(--paper); margin:0 -8px; padding:6px 8px; gap:6px; border-bottom:2px solid var(--ink)}
+  .mswitch .input.sm{padding:6px 10px; font-size:14.5px}
+  .mrow{gap:6px}
+  .mrow .btn.sm{padding:6px 10px; font-size:13px; white-space:nowrap}
+  .mswitch .seg{border-width:2px} .mswitch .seg button{padding:7px 2px}
+  .panel{border:0; box-shadow:none; background:transparent; overflow:visible; border-radius:0}
+  .pbody{padding:0; overflow:visible; gap:12px}
+
+  /* chat: more room for messages, slimmer hint and header */
+  .groups .chat{height:calc(100vh - 224px); height:calc(100dvh - 224px)}
+  .chat-head{padding:8px 12px; gap:10px} .chat-head h2{font-size:17px}
+  .hint{margin:8px 8px 0; padding:8px 10px; font-size:12.5px} .hint-icons{display:none} .hint p{padding-right:22px}
+  .msgs{padding:10px 10px; gap:8px} .msg{max-width:96%}
+  .composer{padding:8px}
+
+  /* 5. Plan form: tighter, and the main button stays reachable while scrolling */
+  .planform{padding:12px; gap:12px; border-radius:14px}
+  .pf-head h3{font-size:18px}
+  legend{margin-bottom:6px}
+  .chips{gap:6px}
+  .chip{padding:5px 10px; font-size:13px}
+  .go-btn{position:sticky; bottom:calc(60px + env(safe-area-inset-bottom)); z-index:5; font-size:18px}
+
+  /* 6. Bucket list: list first, shorter map strip, filters in one swipeable row */
+  .bucket{gap:10px}
+  .mapprev{height:120px; border-radius:14px}
+  .chips.cats{flex-wrap:nowrap; overflow-x:auto; margin:0 -2px; padding:2px 2px 6px; scrollbar-width:none; -webkit-overflow-scrolling:touch}
+  .chips.cats::-webkit-scrollbar{display:none}
+  .chips.cats .chip{flex:none}
+  .prow-main{padding:8px; gap:10px} .prow-main b{font-size:15px}
+
+  /* 7. Calendar: one card, event buttons drop under the title so the title can breathe */
+  .cal{background:var(--white); border:var(--bw) solid var(--ink); border-radius:14px; padding:10px; box-shadow:var(--sh-sm)}
+  .cd{height:40px} .cd i{bottom:2px; width:7px; height:7px}
+  .calitem{flex-wrap:wrap; gap:6px 10px; padding:8px}
+  .calitem .grow{flex:1 1 calc(100% - 60px)}
+  .calitem .btn.icon{margin-left:56px}
+
+  /* 8. small text that was hard to read */
+  .bubble .time,.datebox small{font-size:11px}
+}
+
 /* ---- plan cards ---- */
 .pc-opts li .pts{font-weight:800; font-size:13px; background:var(--white); border:2px solid var(--ink); border-radius:999px; padding:1px 8px; white-space:nowrap}
 .pc-opts li.lead .pts{background:var(--yellow)}
